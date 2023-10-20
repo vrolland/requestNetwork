@@ -57,7 +57,7 @@ template checkBalanceErc20FeeProxy() {
 
     component checkBalance = GreaterEqThan(250);
     checkBalance.in[0] <== amountPaid;
-    checkBalance.in[1] <== requestInputs[2];
+    checkBalance.in[1] <== requestInputs[2]; // request.expectedAmount
     isPaid <== checkBalance.out;
 
 

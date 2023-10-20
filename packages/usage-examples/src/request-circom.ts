@@ -105,42 +105,31 @@ const createParams: RequestNetwork.Types.ICreateRequestParameters = {
   createParams.requestInfo.timestamp = RequestNetwork.Utils.getCurrentTimestampInSecond();
   const request1 = await requestNetwork._createEncryptedRequest(createParams,[payeeEncryptionParameters,payerEncryptionParameters]);
   console.log(`The request will be created with ID ${request1.requestId} -------------------------------------------`);
+  console.log(`Waiting for confirmation...`);
   await request1.waitForConfirmation();
-  // createParams.requestInfo.timestamp = RequestNetwork.Utils.getCurrentTimestampInSecond();
-  // const request2 = await requestNetwork._createEncryptedRequest(createParams,[payeeEncryptionParameters,payerEncryptionParameters]);
-  // console.log(`The request will be created with ID ${request2.requestId} -------------------------------------------`);
+  console.log(`Creation confirmed!`);
   
-
-  // createParams.requestInfo.timestamp = RequestNetwork.Utils.getCurrentTimestampInSecond();
-  // const request3 = await requestNetwork._createEncryptedRequest(createParams,[payeeEncryptionParameters,payerEncryptionParameters]);
-  // console.log(`The request will be created with ID ${request3.requestId} -------------------------------------------`);
-
-  // await request3.waitForConfirmation();
-  
-  // console.log(request1.getData());
-  // console.log(request2.getData().state);
-  // console.log(request3.getData().state);
-
-  
+  console.log();
+  console.log(`The request will be accepted by the payer -------------------------------------------`);
   await request1.accept(payerIdentity);
-  // await request2.accept(payerIdentity);
-  // await request3.accept(payerIdentity);
-  
-  // console.log(request1.getData().state);
-  // console.log(request2.getData().state);
-  // console.log(request3.getData().proofs);
+  console.log(`Accept confirmed!`);
 
-
+  console.log();
+  console.log(`The request will be paid by the payer -------------------------------------------`);
   const paymentReq1 = await RequestPaymentProcessor.payErc20FeeProxyRequest(request1.getData(), wallet);
-  // console.log({paymentReq1});
+  console.log(`Waiting for confirmation...`);
   await paymentReq1.wait();
+  console.log(`Payment confirmed!`);
 
-  console.log('#####################');
+  console.log();
+  console.log('Let\' refresh the request\s data, just in case...');
   console.log(await request1.refresh());
+  console.log(`Done!`);
 
-  console.log('#####################');
-  console.log(request1.getData().proofs);
   const reqProofs = request1.getData().proofs;
+  console.log();
+  console.log("Here the proofs in request's data:");
+  console.log(reqProofs);
 
   const proofs = {
     requestid: request1.requestId,
@@ -149,30 +138,7 @@ const createParams: RequestNetwork.Types.ICreateRequestParameters = {
     checkBalanceErc20FeeProxy: await request1.getPaymentProof()
   }
 
+  console.log();
   console.log('######### JSON PROOFS ############');
   console.log(JSON.stringify(proofs))
-
-  // const waitAccept3 = await new Promise(resolve => {
-  //   console.log("wait accept 3")
-  //   request1.on('confirmed', (resultPersistTxConfirmed) => {
-  //     console.log('Accepted request 3 ! -------------------------------------------');
-  //     console.log(resultPersistTxConfirmed.proofs);
-  //     resolve(resultPersistTxConfirmed.proofs);
-  //   });
-  // })
-  // console.log(waitAccept3);
-
-
-  // request2.on('confirmed', (resultPersistTxConfirmed) => {
-  //   console.log('Accepted request 2 ! -------------------------------------------');
-  //   console.log(resultPersistTxConfirmed.proofs);
-  // });
-
-
-  // request3.on('confirmed', (resultPersistTxConfirmed) => {
-  //   console.log('Accepted request 3 ! -------------------------------------------');
-  //   console.log(resultPersistTxConfirmed.proofs);
-  // });
-
-
 })()

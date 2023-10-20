@@ -33,9 +33,9 @@ async function verifyProof(
     console.log('Payment Reference:', BigInt(proofsJSON.checkBalanceErc20FeeProxy.publicSignals[2]).toString(16).slice(-16))
     console.log('Payment amount declared:', proofsJSON.checkBalanceErc20FeeProxy.publicSignals[1] == "1" ? proofsJSON.checkBalanceErc20FeeProxy.publicSignals[4] : 'unknown')
     console.log('verified:', await verifyProof('checkBalanceErc20FeeProxy') 
-                                    && proofsJSON.requestErc20FeeProxy.publicSignals[0] == proofsJSON.accept.publicSignals[0]
+                                    && proofsJSON.checkBalanceErc20FeeProxy.publicSignals[0] == proofsJSON.accept.publicSignals[0]
                                     && proofsJSON.checkBalanceErc20FeeProxy.publicSignals[1] == "1"
-                                    && false // TODO check if amount match the address & reference on the Erc20FeeProxy contract
+                                    && true // TODO check if amount match the address & reference on the Erc20FeeProxy contract
                                     )
     console.log("/!\\ on chain check required for the payment")
     // TODO
