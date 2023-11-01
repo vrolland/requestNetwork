@@ -44,7 +44,7 @@ template accept() {
     smtRootTree.R <== hCD;
 
 
-    // Check Signature from Payee
+    // Check Signature from Payer
     component signVerifier = EdDSAPoseidonVerifier();
     signVerifier.enabled <== 1;
     signVerifier.Ax <== Ax;
