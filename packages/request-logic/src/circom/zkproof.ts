@@ -434,33 +434,3 @@ async function checkBalanceErc20FeeProxyInputs(
 
     return inputs;
 }
-
-
-
-
-
-// async function run() {
-//     const inputs = await createInputs();
-//     console.log(inputs)
-//     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-//         inputs, // {a: 10, b: 21}, 
-//         "build/requestErc20FeeProxy_js/requestErc20FeeProxy.wasm", 
-//         "build/requestErc20FeeProxy_final.zkey"
-//     );
-
-    
-//     console.log("Proof: ");
-//     console.log(JSON.stringify(proof, null, 1));
-
-//     const vKey = JSON.parse(fs.readFileSync("build/requestErc20FeeProxy_verification_key.json"));
-
-//     const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
-
-//     if (res === true) {
-//         console.log("Verification OK");
-//     } else {
-//         console.log("Invalid proof");
-//     }
-
-// }
-
