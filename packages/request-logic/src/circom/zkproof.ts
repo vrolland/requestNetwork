@@ -13,8 +13,285 @@ const PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX = -128;
 
 export {
     generateProof,
-    computeRequestIdCircom
+    computeRequestIdCircom,
+    computeRequestMerkleTrees,
+    checkSelectDisclosureProof,
+    getSelectDisclosureProof
 }
+
+function stringToHex(str: string): string {
+    let hexStr = '';
+    for (let i = 0; i < str.length; i++) {
+      hexStr += str.charCodeAt(i).toString(16);
+    }
+    return hexStr;
+}
+
+
+async function getSelectDisclosureProof(requestData: RequestLogicTypes.ICreateParameters | RequestLogicTypes.IRequest, indexToDisclose: any[]): Promise<any> {
+
+    const mks = await computeRequestMerkleTrees(requestData);
+
+    const pnIndexes = indexToDisclose.filter(v =>  v >= RequestLogicTypes.PN_ERC20PROXYFEE_INDEX_PARAMS.SALT && v <= RequestLogicTypes.PN_ERC20PROXYFEE_INDEX_PARAMS.REFUNDINFO);
+    const reqIndexes = indexToDisclose.filter(v =>  v >= RequestLogicTypes.REQUEST_INDEX_PARAMS.PAYEE && v <= RequestLogicTypes.REQUEST_INDEX_PARAMS.CONTENTDATA_ROOT);
+
+    if(pnIndexes.length != 0) {
+        reqIndexes.push(RequestLogicTypes.REQUEST_INDEX_PARAMS.PN_ROOT);
+    }
+
+    return [
+        mks[0].root,
+        mks[0].createMultiProof(reqIndexes),
+        mks[1].createMultiProof(pnIndexes.map(v => v - 10))
+    ];
+}
+
+async function checkSelectDisclosureProof(proofs: any): Promise<boolean> {
+    // const root = proofs[0].toString('hex');
+    const proofReq = proofs[1];
+    const proofPN = proofs[2];
+
+    const isValidReq = true; //await validMerkleProof(root, proofReq);
+
+    let isValidPN = false;
+    if(proofReq[3] && proofReq[3][7]) {
+
+        const poseidon = await circomlibjs.buildPoseidon();
+        const F = poseidon.F;
+        const rootPN = F.e(proofReq[3][7]).toString('hex');
+
+        isValidPN = await validMerkleProof(rootPN, proofPN);
+    } else {
+        isValidPN = true;
+    }
+
+    return isValidPN && isValidReq;
+}
+
+
+async function validMerkleProof(root: any, proof: any): Promise<boolean> {
+    const poseidon = await circomlibjs.buildPoseidon();
+
+    const l1 = [].concat(proof[0]);
+    const l2 = [].concat(proof[1]);
+    const l3 = [].concat(proof[2]);
+    const leaves = [].concat(proof[3]);
+
+    const l3Computed = await Promise.all(
+        l3.map(async (v, i) => v || (!!leaves[i] ? await poseidon([i, leaves[i], 1]) : null) )
+    );
+
+    const l2Computed = await Promise.all(l2.map(async (v, i) => {
+        if(v) return v;
+        const result = l3Computed[i*2] && l3Computed[i*2+1] ? await poseidon([l3Computed[i*2],l3Computed[i*2+1]]) : null
+        return result;
+    }
+    ));
+
+    const l1Computed = await Promise.all(l1.map(async (v, i) => {
+        if(v) return v;
+        return l2Computed[i*2] && l2Computed[i*2+1] ? await poseidon([l2Computed[i*2],l2Computed[i*2+1]]) : null
+    }
+    ));
+
+    const computedRoot = await poseidon([l1Computed[0], l1Computed[1]])
+
+    return root == computedRoot.toString('hex');
+}
+
+
+// async function convertUint8ArrayToHexAsync(data:any): Promise<any> {
+//     const poseidon = await circomlibjs.buildPoseidon();
+//     const F = poseidon.F;
+
+//     if (data instanceof Uint8Array) {
+//       return await F.toObject(data);;
+//     } else if (Array.isArray(data)) {
+//       // Itère récursivement sur les éléments s'il s'agit d'un tableau
+//       const arrayPromises:any = data.map(async (item) => await convertUint8ArrayToHexAsync(item));
+//       return Promise.all(arrayPromises);
+//     } else if (data && typeof data === 'object') {
+//       // Itère récursivement sur les propriétés s'il s'agit d'un objet
+//       const keys = Object.keys(data);
+//       const objPromises:any = keys.map(async (key) => {
+//         const value = await convertUint8ArrayToHexAsync(data[key]);
+//         return [key, value]; // Retourne une paire clé-valeur
+//       });
+//       // Construit un nouvel objet à partir des paires clé-valeur résolues
+//       const resolvedPairs = await Promise.all(objPromises);
+//       return resolvedPairs.reduce((acc, [key, value]) => {
+//         acc[key] = value;
+//         return acc;
+//       }, {});
+//     } else {
+//       // Retourne la donnée sans modification si elle ne correspond à aucun cas précédent
+//       return data;
+//     }
+//   }
+
+
+class MerlkeTreeRequest {
+    init = false
+    root = ""
+    l1 = [ null , null]
+    l2 = [ null , null, null, null]
+    l3 = [ null ]
+    leaves
+    hash
+
+    constructor(_leaves : any, _hash : any) {
+        if(_leaves.length != 8) {
+            throw "leaves size wrong"
+        }
+        this.leaves = _leaves;
+        this.hash = _hash;
+    };
+
+      
+    async initialize() {
+        this.l3 = await Promise.all(this.leaves.map(async (v:any,i:any) => {
+            return this.hash([i, v, 1])}));
+
+
+        this.l2 = await Promise.all(
+            this.l2.map((_,i) => this.hash([this.l3[i*2],this.l3[i*2+1]]))
+        );
+
+        this.l1 = await Promise.all(
+            this.l1.map((_,i) => this.hash([this.l2[i*2],this.l2[i*2+1]]))
+        );
+
+        this.root = await this.hash([this.l1[0], this.l1[1]]);
+        this.init = true;
+
+        // console.log("#########################################")
+        // console.log(this.leaves[0])
+        // console.log("this.l3")
+        // console.log(await convertUint8ArrayToHexAsync(this.l3))
+        // console.log("this.l2")
+        // console.log(await convertUint8ArrayToHexAsync(this.l2))
+        // console.log("this.l1")
+        // console.log(await convertUint8ArrayToHexAsync(this.l1))
+        // console.log("this.root")
+        // console.log(await convertUint8ArrayToHexAsync(this.root))
+    }
+
+
+
+    createMultiProof(indexToShow: any[] = []) {
+        if(!this.init) {
+            throw "merkle tree not initialized"
+        }
+
+        if( indexToShow.length === 0 ) {
+            return [];
+        }
+
+        const l1Show =  this.l1.map( (h,i) => 
+            // show the hash only if all the element below are not to show
+            indexToShow.every(v => v < i*4 || v > i*4+3) ? h /* Buffer.from(h!).toString('hex') */ : null
+        );
+        const l2Show =  this.l2.map( (h,i) => 
+            // show the hash only if all the element below are not to show AND the parent is not to show
+            !l1Show[Math.floor(i/2)]
+            && 
+            indexToShow.every(v => v < i*2 || v > i*2+1) 
+            ? h /* Buffer.from(h!).toString('hex') */ : null
+        );
+        const l3Show =  this.l3.map( (h:any, i:any) => 
+            // the parents is not to show && the leaf is not to show
+            l1Show[Math.floor(i/4)]
+            ||
+            l2Show[Math.floor(i/2)]
+            ||
+            indexToShow.includes(i) ? null : h /* Buffer.from(h!).toString('hex') */
+        );
+    
+        const leavesShow = this.leaves.map((v:any,i:any) => indexToShow.includes(i) ? v : null);
+
+
+    
+        return [l1Show, l2Show, l3Show, leavesShow];
+    
+    }
+}
+
+async function computeRequestMerkleTrees(
+    requestParameters: RequestLogicTypes.ICreateParameters | RequestLogicTypes.IRequest) 
+    : Promise<any[]> {
+
+    const poseidon = await circomlibjs.buildPoseidon();
+    const F = poseidon.F;
+
+    const pn = requestParameters.extensionsData?.find(e => e.id === ExtensionTypes.PAYMENT_NETWORK_ID.ERC20_FEE_PROXY_CONTRACT);
+    if(!pn) {
+        throw Error(`Implemented only for ${ExtensionTypes.PAYMENT_NETWORK_ID.ERC20_FEE_PROXY_CONTRACT}`);
+    }
+    // const contentData = requestParameters.extensionsData?.find(e => e.id === ExtensionTypes.OTHER_ID.CONTENT_DATA);
+    // TODO
+    const contentDataHash = 0;
+    // if(contentData) {
+    //     contentDataHash = await poseidon(contentData.)
+    // }
+
+    // const salt = '0x4d52102fe8937d3b'; // '0x'+pn.parameters.salt;
+    const salt = '0x'+pn.parameters.salt;
+    const chainId = 1; // TODO FROM pn.version or currency
+
+    const currencyType = BigInt(stringToHex(requestParameters.currency.type))
+    const currencyNetwork = BigInt(stringToHex(requestParameters.currency.network || "  "))
+    const currencyHash = await poseidon([currencyType, requestParameters.currency.value, currencyNetwork])
+    // {
+    //     type: 'ERC20',
+    //     value: '0x9FBDa871d559710256a2502A2517b794B482Db40',
+    //     network: 'private'
+    //   }
+    const nonce = requestParameters.nonce || 0;
+
+    const paymentNetworkLeaves = 
+    [
+        salt,
+        chainId,
+        pn.parameters.feeAddress,
+        pn.parameters.feeAmount,
+        pn.parameters.paymentAddress,
+        pn.parameters.refundAddress,
+        0,
+        0,
+    ];
+
+    const pnMerkleTree = new MerlkeTreeRequest(paymentNetworkLeaves, poseidon);
+    await pnMerkleTree.initialize();
+
+    const requestLeaves =
+    [
+        F.toObject(Buffer.from(requestParameters.payee!.value, 'hex')),
+        F.toObject(Buffer.from(requestParameters.payer!.value, 'hex')),
+        0, // requestParameters.timestamp,
+        nonce,
+
+        requestParameters.expectedAmount,
+        F.toObject(currencyHash),
+        contentDataHash,
+        F.toObject(pnMerkleTree.root),
+    ];
+
+    const reqMerkleTree = new MerlkeTreeRequest(requestLeaves, poseidon);
+    await reqMerkleTree.initialize();
+
+    return [reqMerkleTree, pnMerkleTree];
+} 
+
+ 
+async function computeRequestIdCircom(
+    requestParameters: RequestLogicTypes.ICreateParameters | RequestLogicTypes.IRequest) 
+    : Promise<RequestLogicTypes.RequestIdCircom> {
+    const mts:any[] = await computeRequestMerkleTrees(requestParameters);
+    return mts[0].root;
+} 
+
+
+
 
 async function generateProof(
     name: string, 
@@ -35,7 +312,6 @@ async function generateProof(
         throw Error('Not implemented')
     }
 
-
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         inputs,
         // TODO relative path
@@ -45,85 +321,6 @@ async function generateProof(
 
     return { proof, publicSignals };
 }
-  
-async function computeRequestIdCircom(
-    requestParameters: RequestLogicTypes.ICreateParameters | RequestLogicTypes.IRequest) 
-    : Promise<RequestLogicTypes.RequestIdCircom> {
-
-    const poseidon = await circomlibjs.buildPoseidon();
-    const F = poseidon.F;
-
-    const pn = requestParameters.extensionsData?.find(e => e.id === ExtensionTypes.PAYMENT_NETWORK_ID.ERC20_FEE_PROXY_CONTRACT);
-    if(!pn) {
-        throw Error(`Implemented only for ${ExtensionTypes.PAYMENT_NETWORK_ID.ERC20_FEE_PROXY_CONTRACT}`);
-    }
-    // const contentData = requestParameters.extensionsData?.find(e => e.id === ExtensionTypes.OTHER_ID.CONTENT_DATA);
-    // TODO
-    const contentDataHash = 0;
-    // if(contentData) {
-    //     contentDataHash = await poseidon(contentData.)
-    // }
-
-    const salt = '0x'+pn.parameters.salt;
-    const chainId = 1; // TODO FROM pn.version or currency
-    const currencyHash = "0x6b175474e89094c44da98b954eedeac495271d0f"; // requestParameters.currency.value
-    const nonce = requestParameters.nonce || 0;
-
-    const requestInputs =
-    [
-        F.toObject(Buffer.from(requestParameters.payee!.value, 'hex')),
-        F.toObject(Buffer.from(requestParameters.payer!.value, 'hex')),
-        requestParameters.expectedAmount,
-        currencyHash, // TODO better
-        requestParameters.timestamp,
-        nonce,
-        contentDataHash,
-    ];
-    const paymentNetworkInputs = 
-    [
-        salt,
-        chainId,
-        pn.parameters.feeAddress,
-        pn.parameters.feeAmount,
-        pn.parameters.paymentAddress,
-        0, 
-        0,
-        0,
-    ];
-
-
-    const leavesPN = await Promise.all(paymentNetworkInputs.map(async (v,i) => poseidon([i, v, 1])));
-    const level2PN = await Promise.all([
-        poseidon(leavesPN.slice(0,2)),
-        poseidon(leavesPN.slice(2,4)),
-        poseidon(leavesPN.slice(4,6)),
-        poseidon(leavesPN.slice(6,8)),
-    ]);
-    const level1PN = await Promise.all([
-        poseidon(level2PN.slice(0,2)),
-        poseidon(level2PN.slice(2,4)),
-    ]);
-    const rootPN = await poseidon(level1PN);
-
-
-    const leavesRequest = await Promise.all(requestInputs
-            .concat(F.toObject(rootPN))
-            .map(async (v,i) => poseidon([i, v, 1])));
-
-    const level2Request = await Promise.all([
-        poseidon(leavesRequest.slice(0,2)),
-        poseidon(leavesRequest.slice(2,4)),
-        poseidon(leavesRequest.slice(4,6)),
-        poseidon(leavesRequest.slice(6,8)),
-    ]);
-    const level1Request = await Promise.all([
-        poseidon(level2Request.slice(0,2)),
-        poseidon(level2Request.slice(2,4)),
-    ]);
-    const treeRoot = await poseidon(level1Request);
-
-    return treeRoot;
-} 
 
 async function createInputs(
     requestParameters: RequestLogicTypes.ICreateParameters,
@@ -149,32 +346,43 @@ async function createInputs(
     // }
 
 
+    // const salt = '0x4d52102fe8937d3b'; // '0x'+pn.parameters.salt;
     const salt = '0x'+pn.parameters.salt;
     const chainId = 1; // TODO FROM pn.version or currency
-    const currencyHash = "0x6b175474e89094c44da98b954eedeac495271d0f"; // requestParameters.currency.value
+
+    const currencyType = BigInt(stringToHex(requestParameters.currency.type))
+    const currencyNetwork = BigInt(stringToHex(requestParameters.currency.network || "  "))
+    const currencyHash = await poseidon([currencyType, requestParameters.currency.value, currencyNetwork])
+
     const nonce = requestParameters.nonce || 0;
 
-    const requestInputs =
-    [
-        F.toObject(Buffer.from(requestParameters.payer!.value, 'hex')),
-        requestParameters.expectedAmount,
-        currencyHash, // TODO better
-        requestParameters.timestamp,
-        nonce,
-        contentDataHash,
-    ];
-    const paymentNetworkInputs = 
+    const paymentNetworkLeaves = 
     [
         salt,
         chainId,
         pn.parameters.feeAddress,
         pn.parameters.feeAmount,
         pn.parameters.paymentAddress,
-        0, 
+        pn.parameters.refundAddress,
         0,
         0,
     ];
+    const pnMerkleTree = new MerlkeTreeRequest(paymentNetworkLeaves, poseidon);
+    await pnMerkleTree.initialize();
 
+    const requestLeaves =
+    [
+        F.toObject(Buffer.from(requestParameters.payer!.value, 'hex')),
+        0, // requestParameters.timestamp,
+        nonce,
+        requestParameters.expectedAmount,
+        F.toObject(currencyHash),
+        contentDataHash,
+        // F.toObject(pnMerkleTree.root),
+    ];
+    // console.log("##############");
+    // console.log(requestLeaves);
+    // console.log("##############");
     const treeRoot = await computeRequestIdCircom(requestParameters);
 
     if(!requestParameters.payee || requestParameters.payee.type !== IdentityTypes.TYPE.POSEIDON_ADDRESS) {
@@ -193,8 +401,8 @@ async function createInputs(
 
     // console.log({signatureBuff});
     const inputs = {
-        requestInputs,
-        paymentNetworkInputs,
+        requestInputs: requestLeaves,
+        paymentNetworkInputs: paymentNetworkLeaves,
         Ax: F.toObject(Ax),
         Ay: F.toObject(Ay),
         R8x: F.toObject(signatureBuff.R8[0]),
@@ -202,37 +410,7 @@ async function createInputs(
         S: signatureBuff.S,
     };
 
-
-    // const inputsTest = {
-    //     requestInputs: [
-    //       "7830714765930193524542283960493871390289592027408961684949519142577988926867n",
-    //       '123400000000000000',
-    //       '0x6b175474e89094c44da98b954eedeac495271d0f',
-    //       1544426030,
-    //       0,
-    //       0
-    //     ],
-    //     paymentNetworkInputs: [
-    //       '0xea3bc7caf64110ca',
-    //       1,
-    //       '0x0000000000000000000000000000000000000001',
-    //       '0',
-    //       '0x0000000000000000000000000000000000000002',
-    //       0,
-    //       0,
-    //       0
-    //     ],
-    //     Ax: "13277427435165878497778222415993513565335242147425444199013288855685581939618n",
-    //     Ay: "13622229784656158136036771217484571176836296686641868549125388198837476602820n",
-    //     R8x: "12365160791755433480669383766643952452358488273676453361236483640807675652990n",
-    //     R8y: "11381633490844542073390207339032266293338633384819114863034395228984596574891n",
-    //     S: "393646507736440823518012860391292632945297105686062001074563216898843335886n"
-    //   }
-      
-      
-    // console.log({inputsTest});
-    // console.log({inputs});
-
+    // console.log(inputs)
     return inputs;
 }
 
@@ -273,66 +451,51 @@ async function acceptInputs(
     // }
 
 
+    // const salt = '0x4d52102fe8937d3b'; // '0x'+pn.parameters.salt;
     const salt = '0x'+pn.parameters.salt;
     const chainId = 1; // TODO FROM pn.version or currency
-    const currencyHash = "0x6b175474e89094c44da98b954eedeac495271d0f"; // requestParameters.currency.value
+
+    const currencyType = BigInt(stringToHex(requestState.currency.type))
+    const currencyNetwork = BigInt(stringToHex(requestState.currency.network || "  "))
+    const currencyHash = await poseidon([currencyType, requestState.currency.value, currencyNetwork])
+
     const nonce = requestState.nonce || 0;
 
-    const requestInputs =
-    [
-        F.toObject(Buffer.from(requestState.payee!.value, 'hex')),
-        F.toObject(Buffer.from(requestState.payer!.value, 'hex')),
-        requestState.expectedAmount,
-        currencyHash, // TODO better
-        requestState.timestamp,
-        nonce,
-        contentDataHash,
-    ];
-    const paymentNetworkInputs = 
+    const paymentNetworkLeaves = 
     [
         salt,
         chainId,
         pn.parameters.feeAddress,
         pn.parameters.feeAmount,
         pn.parameters.paymentAddress,
-        0, 
+        pn.parameters.refundAddress,
         0,
         0,
     ];
+    const pnMerkleTree = new MerlkeTreeRequest(paymentNetworkLeaves, poseidon);
+    await pnMerkleTree.initialize();
     
-    // Compute tree root
-    const leavesPN = await Promise.all(paymentNetworkInputs.map(async (v,i) => poseidon([i, v, 1])));
-    const level2PN = await Promise.all([
-        poseidon(leavesPN.slice(0,2)),
-        poseidon(leavesPN.slice(2,4)),
-        poseidon(leavesPN.slice(4,6)),
-        poseidon(leavesPN.slice(6,8)),
-    ]);
-    const level1PN = await Promise.all([
-        poseidon(level2PN.slice(0,2)),
-        poseidon(level2PN.slice(2,4)),
-    ]);
-    const rootPN = await poseidon(level1PN);
+    const requestLeaves =
+    [
+        F.toObject(Buffer.from(requestState.payee!.value, 'hex')),
+        F.toObject(Buffer.from(requestState.payer!.value, 'hex')),
+        requestState.timestamp,
+        nonce,
+        requestState.expectedAmount,
+        F.toObject(currencyHash),
+        contentDataHash,
+        F.toObject(pnMerkleTree.root),
+    ];
+    const reqMerkleTree = new MerlkeTreeRequest(requestLeaves, poseidon);
+    await reqMerkleTree.initialize();
 
-    const leavesRequest = await Promise.all(requestInputs
-            .concat(F.toObject(rootPN))
-            .map(async (v,i) => poseidon([i, v, 1])));
-
-    const level2Request = await Promise.all([
-        poseidon(leavesRequest.slice(0,2)),
-        poseidon(leavesRequest.slice(2,4)),
-        poseidon(leavesRequest.slice(4,6)),
-        poseidon(leavesRequest.slice(6,8)),
-    ]);
-    const level1Request = await Promise.all([
-        poseidon(level2Request.slice(0,2)),
-        poseidon(level2Request.slice(2,4)),
-    ]);
-    const treeRoot = await poseidon(level1Request);
-
-    const h0 = leavesRequest[0];
-    const hB = level2Request[1];
-    const hCD = level1Request[1];
+    const treeRoot = reqMerkleTree.root;
+    const h0 = reqMerkleTree.l3[0];
+    const hB = reqMerkleTree.l2[1];
+    const hCD = reqMerkleTree.l1[1];
+    // const h0 = leavesRequest[0];
+    // const hB = level2Request[1];
+    // const hCD = level1Request[1];
 
     //       root
     //    AB      CD
@@ -399,38 +562,52 @@ async function checkBalanceErc20FeeProxyInputs(
     // }
 
 
+    // const salt = '0x4d52102fe8937d3b'; // '0x'+pn.parameters.salt;
     const salt = '0x'+pn.parameters.salt;
     const chainId = 1; // TODO FROM pn.version or currency
-    const currencyHash = "0x6b175474e89094c44da98b954eedeac495271d0f"; // TODO: requestParameters.currency.value && CHECK IT !
+    
+    const currencyType = BigInt(stringToHex(requestState.currency.type))
+    const currencyNetwork = BigInt(stringToHex(requestState.currency.network || "  "))
+    const currencyHash = await poseidon([currencyType, requestState.currency.value, currencyNetwork])
+
     const nonce = requestState.nonce || 0;
 
-    const requestInputs =
-    [
-        F.toObject(Buffer.from(requestState.payee!.value, 'hex')),
-        F.toObject(Buffer.from(requestState.payer!.value, 'hex')),
-        requestState.expectedAmount,
-        currencyHash, // TODO better
-        requestState.timestamp,
-        nonce,
-        contentDataHash,
-    ];
-    const paymentNetworkInputs = 
+
+    const paymentNetworkLeaves = 
     [
         salt,
         chainId,
         pn.parameters.feeAddress,
         pn.parameters.feeAmount,
         pn.parameters.paymentAddress,
-        0, 
+        pn.parameters.refundAddress,
         0,
         0,
     ];
+    const pnMerkleTree = new MerlkeTreeRequest(paymentNetworkLeaves, poseidon);
+    await pnMerkleTree.initialize();
+
+    const requestLeaves =
+    [
+        F.toObject(Buffer.from(requestState.payee!.value, 'hex')),
+        F.toObject(Buffer.from(requestState.payer!.value, 'hex')),
+        requestState.timestamp,
+        nonce,
+        requestState.expectedAmount,
+        F.toObject(currencyHash),
+        contentDataHash,
+        // F.toObject(pnMerkleTree.root)
+    ];
 
     const inputs = {
-        requestInputs,
-        paymentNetworkInputs,
+        requestInputs: requestLeaves,
+        paymentNetworkInputs: paymentNetworkLeaves,
         amountPaid,
     };
+
+
+    console.log("inputs")
+    console.log(inputs)
 
     return inputs;
 }

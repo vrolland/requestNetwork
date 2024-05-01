@@ -12,7 +12,7 @@ import {
 import RequestLogicCore from './requestLogicCore';
 import { normalizeKeccak256Hash, notNull, uniqueByProperty } from '@requestnetwork/utils';
 
-import { generateProof } from './circom/zkproof';
+import { generateProof, getSelectDisclosureProof, checkSelectDisclosureProof } from './circom/zkproof';
 
 /**
  * Implementation of Request Logic
@@ -79,7 +79,9 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
         'You must give at least one encryption parameter to create an encrypted request',
       );
     }
-
+    console.log('JSON.stringify(requestParameters)')
+    console.log(JSON.stringify(requestParameters))
+    console.log('JSON.stringify(requestParameters)')
     const { action, requestId, proof, hashedTopics } = await this.createCreationActionRequestIdAndTopics(
       requestParameters,
       signerIdentity,
@@ -397,6 +399,26 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     return generateProof('checkBalanceErc20FeeProxy', {requestId}, undefined, confirmedRequestState, amountPaid);
   }
 
+  public async getSelectDisclosureProof(
+    requestData: RequestLogicTypes.ICreateParameters | RequestLogicTypes.IRequest,
+    indexToDisclose: any[]
+  ): Promise<any> {
+    const result = getSelectDisclosureProof(
+      requestData,
+      indexToDisclose
+    );
+
+    return result;
+  }
+
+
+  public async checkSelectDisclosureProof(proofs: any): Promise<boolean> {
+    return checkSelectDisclosureProof(
+      proofs
+    );
+  }
+
+  
 
   /**
    * Creates the creation action and the requestId of a request

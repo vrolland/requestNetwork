@@ -698,6 +698,18 @@ export default class Request {
     });
   }
 
+  public async getSelectDisclosureProof(indexToDisclose: any[]): Promise<any> {
+    if (this.confirmationErrorOccurredAtCreation) {
+      throw Error('request confirmation failed');
+    }
+    let requestData = deepCopy(this.requestData);
+    const merkleproofs =  await this.requestLogic.getSelectDisclosureProof(requestData!, indexToDisclose);
+    return { 
+      requestIdZK: this.requestData?.requestIdCircom,
+      merkleproofs
+    }
+  }
+
   public async getEscrowData(
     paymentReference: string,
     network: CurrencyTypes.EvmChainName,

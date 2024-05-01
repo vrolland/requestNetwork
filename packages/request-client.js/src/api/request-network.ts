@@ -24,6 +24,8 @@ import ContentDataExtension from './content-data-extension';
 import Request from './request';
 import localUtils from './utils';
 
+const snarkjs = require("snarkjs");
+
 /**
  * Entry point of the request-client.js library. Create requests, get requests, manipulate requests.
  */
@@ -356,6 +358,32 @@ export default class RequestNetwork {
 
     return Promise.all(requestPromises);
   }
+
+
+  public async checkSelectDisclosureProof(disclosureProof: any): Promise<boolean> {
+    return await this.requestLogic.checkSelectDisclosureProof(
+      disclosureProof.merkleproofs
+    );
+  }
+  
+  public async verifyProof(
+    name: string,
+    proofsJSON: any
+) : Promise<boolean> {
+    const publicSignals = proofsJSON[name].publicSignals;
+    const proof = proofsJSON[name].proof;
+
+    const vKey = require(`/home/vincent/Documents/request/vrolland-requestNetwork/packages/request-logic/src/circom/${name}_verification_key.json`);
+
+    // const vKey = JSON.parse(fs.readFileSync("build/requestErc20FeeProxy_verification_key.json"));
+    // const vKey = JSON.parse(vKeyJSON);
+
+    return snarkjs.groth16.verify(vKey, publicSignals, proof);
+
+}
+
+
+
 
   /*
    * If request currency is a string, convert it to currency object

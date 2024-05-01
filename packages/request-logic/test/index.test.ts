@@ -118,7 +118,7 @@ describe('index', () => {
 
 
 
-    it.only('can createRequest WITH ZK PROOF', async () => {
+    it('can createRequest WITH ZK PROOF', async () => {
       const eddsa = await circomlibjs.buildEddsa();
       const poseidon = await circomlibjs.buildPoseidon();
       // const F = poseidon.F;
@@ -219,8 +219,21 @@ describe('index', () => {
       );
     });
 
+    it.only('check selectDisclosure', async () => {
+      const requestData: any = {"currency":{"type":"ERC20","value":"0x9FBDa871d559710256a2502A2517b794B482Db40","network":"private"},"expectedAmount":"1000000000000000000","payee":{"type":"poseidonAddress","value":"a72a20d524c018ffc378feeb04a81f860965827ef7478a079a1bba02382b5808"},"payer":{"type":"poseidonAddress","value":"c51da3491a2d0cd6eb789627e3aa569031cbf127f634f2bea4b8808fd1232920"},"timestamp":1711550271,"extensionsData":[{"action":"create","id":"pn-erc20-fee-proxy-contract","parameters":{"feeAddress":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","feeAmount":"100000000000000000","paymentAddress":"0x627306090abaB3A6e1400e9345bC60c78a8BEf57","salt":"df341db4a23259d3"},"version":"0.2.0"}],"extensions":{"pn-erc20-fee-proxy-contract":{"events":[{"name":"create","parameters":{"feeAddress":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","feeAmount":"100000000000000000","paymentAddress":"0x627306090abaB3A6e1400e9345bC60c78a8BEf57","salt":"df341db4a23259d3"},"timestamp":1711550287}],"id":"pn-erc20-fee-proxy-contract","type":"payment-network","values":{"salt":"df341db4a23259d3","receivedPaymentAmount":"0","receivedRefundAmount":"0","sentPaymentAmount":"0","sentRefundAmount":"0","paymentAddress":"0x627306090abaB3A6e1400e9345bC60c78a8BEf57","feeAddress":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","feeAmount":"100000000000000000","feeBalance":{"events":[],"balance":"0"}},"version":"0.2.0"}},"requestId":"01d1ef7e16084b39204aa66b85f90845c85ae441d04237cb46205b7fc95a34c0a7","requestIdCircom":"2795aedd5088d975ce5afb70fab843509cbf0c5c0107cfa0913e396a113bb907","version":"3.0.0","events":[{"actionSigner":{"type":"poseidonAddress","value":"a72a20d524c018ffc378feeb04a81f860965827ef7478a079a1bba02382b5808"},"name":"create","parameters":{"expectedAmount":"1000000000000000000","extensionsDataLength":1,"isSignedRequest":false},"timestamp":1711550287}],"state":"created","creator":{"type":"poseidonAddress","value":"a72a20d524c018ffc378feeb04a81f860965827ef7478a079a1bba02382b5808"}};
+      const indexs = [0,2,14,10];
 
+      const requestLogic = new RequestLogic(fakeTransactionManager, TestData.fakeSignatureProvider);
 
+      const proof = await requestLogic.getSelectDisclosureProof(requestData, indexs);
+
+      // console.log(proof)
+
+      const isValid = await requestLogic.checkSelectDisclosureProof(proof);
+
+      console.log(isValid)
+    });
+    
 
     it('can createRequest', async () => {
       const requestLogic = new RequestLogic(fakeTransactionManager, TestData.fakeSignatureProvider);

@@ -68,6 +68,12 @@ export interface IRequestLogic {
     requestId: RequestId,
     amountPaid: Amount,
   ) => Promise<any>;
+
+  getSelectDisclosureProof: (
+    requestData: ICreateParameters | IRequest,
+    indexToDisclose: any[]
+  ) => Promise<any>;
+  checkSelectDisclosureProof: (proofs: any)=> Promise<boolean>;
 }
 
 /** Restrict research to two timestamp */
@@ -317,4 +323,29 @@ export enum ROLE {
   PAYEE = 'payee',
   PAYER = 'payer',
   THIRD_PARTY = 'third-party',
+}
+
+
+
+
+export enum PN_ERC20PROXYFEE_INDEX_PARAMS {
+  SALT = 10,
+  CHAINID,
+  FEEADDRESS,
+  FEEAMOUNT,
+  PAYMENTADDRESS,
+  REFUNDADDRESS,
+  PAYMENTINFO,
+  REFUNDINFO,
+}
+
+export enum REQUEST_INDEX_PARAMS {
+  PAYEE = 0,
+  PAYER,
+  TIMESTAMP,
+  NONCE,
+  EXPECTEDAMOUNT,
+  CURRENCY,
+  CONTENTDATA_ROOT,
+  PN_ROOT,
 }

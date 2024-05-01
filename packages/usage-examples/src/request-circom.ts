@@ -1,6 +1,7 @@
 
 // @ts-ignore
 import { providers, Wallet } from 'ethers';
+const circomlibjs = require('circomlibjs');
 
 
 import { EthereumPrivateKeyDecryptionProvider } from '@requestnetwork/epk-decryption';
@@ -72,8 +73,9 @@ const paymentNetwork: RequestNetwork.Types.Payment.PaymentNetworkCreateParameter
   id: RequestNetwork.Types.Extension.PAYMENT_NETWORK_ID.ERC20_FEE_PROXY_CONTRACT,
   parameters: {
     paymentAddress: '0x627306090abaB3A6e1400e9345bC60c78a8BEf57',
-    feeAmount: '100000000000000000',
+    feeAmount: '90000000000000000',
     feeAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    refundAddress:  '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
   },
 };
 
@@ -104,10 +106,79 @@ const createParams: RequestNetwork.Types.ICreateRequestParameters = {
 
   createParams.requestInfo.timestamp = RequestNetwork.Utils.getCurrentTimestampInSecond();
   const request1 = await requestNetwork._createEncryptedRequest(createParams,[payeeEncryptionParameters,payerEncryptionParameters]);
+  // const request1 = await requestNetwork.fromRequestId('011b9244fe6bfade3f5eeddea35ba57a0d20042413040dee2ff9c69307fdaf63fe');
   console.log(`The request will be created with ID ${request1.requestId} -------------------------------------------`);
   console.log(`Waiting for confirmation...`);
   await request1.waitForConfirmation();
   console.log(`Creation confirmed!`);
+  
+
+  const disclosedProof = await request1.getSelectDisclosureProof([
+    RequestNetwork.Types.RequestLogic.PN_ERC20PROXYFEE_INDEX_PARAMS.SALT,
+    RequestNetwork.Types.RequestLogic.PN_ERC20PROXYFEE_INDEX_PARAMS.CHAINID,
+    RequestNetwork.Types.RequestLogic.PN_ERC20PROXYFEE_INDEX_PARAMS.FEEADDRESS,
+    RequestNetwork.Types.RequestLogic.PN_ERC20PROXYFEE_INDEX_PARAMS.FEEAMOUNT,
+    RequestNetwork.Types.RequestLogic.PN_ERC20PROXYFEE_INDEX_PARAMS.PAYMENTADDRESS,
+    RequestNetwork.Types.RequestLogic.PN_ERC20PROXYFEE_INDEX_PARAMS.REFUNDADDRESS,
+    // RequestNetwork.Types.RequestLogic.PN_ERC20PROXYFEE_INDEX_PARAMS.PAYMENTINFO,
+    // RequestNetwork.Types.RequestLogic.PN_ERC20PROXYFEE_INDEX_PARAMS.REFUNDINFO,
+    // RequestNetwork.Types.RequestLogic.REQUEST_INDEX_PARAMS.PAYEE,
+    // RequestNetwork.Types.RequestLogic.REQUEST_INDEX_PARAMS.PAYER,
+    // RequestNetwork.Types.RequestLogic.REQUEST_INDEX_PARAMS.TIMESTAMP,
+    // RequestNetwork.Types.RequestLogic.REQUEST_INDEX_PARAMS.NONCE,
+    RequestNetwork.Types.RequestLogic.REQUEST_INDEX_PARAMS.EXPECTEDAMOUNT,
+    RequestNetwork.Types.RequestLogic.REQUEST_INDEX_PARAMS.CURRENCY,
+    // RequestNetwork.Types.RequestLogic.REQUEST_INDEX_PARAMS.CONTENTDATA_ROOT,
+    // RequestNetwork.Types.RequestLogic.REQUEST_INDEX_PARAMS.PN_ROOT,
+  ]);
+
+  console.log('disclosedProof --------------------------');
+  // console.log(JSON.stringify(disclosedProof));
+  // console.log(disclosedProof.merkleproofs);
+
+  // console.log(disclosedProof.merkleproofs);
+  console.log(disclosedProof);
+
+
+  async function convertUint8ArrayToHexAsync(data:any): Promise<any> {
+    const poseidon = await circomlibjs.buildPoseidon();
+    const F = poseidon.F;
+
+    if (data instanceof Uint8Array) {
+      return await F.toObject(data);;
+    } else if (Array.isArray(data)) {
+      // Itère récursivement sur les éléments s'il s'agit d'un tableau
+      const arrayPromises:any = data.map(async (item) => await convertUint8ArrayToHexAsync(item));
+      return Promise.all(arrayPromises);
+    } else if (data && typeof data === 'object') {
+      // Itère récursivement sur les propriétés s'il s'agit d'un objet
+      const keys = Object.keys(data);
+      const objPromises:any = keys.map(async (key) => {
+        const value = await convertUint8ArrayToHexAsync(data[key]);
+        return [key, value]; // Retourne une paire clé-valeur
+      });
+      // Construit un nouvel objet à partir des paires clé-valeur résolues
+      const resolvedPairs = await Promise.all(objPromises);
+      return resolvedPairs.reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {});
+    } else {
+      // Retourne la donnée sans modification si elle ne correspond à aucun cas précédent
+      return data;
+    }
+  }
+
+
+  console.log('--------------------------------------');
+  console.log(await convertUint8ArrayToHexAsync(disclosedProof.merkleproofs));
+
+  
+  console.log('--------------------------------------');
+  console.log('--------------------------------------');
+
+  const valid = await requestNetwork.checkSelectDisclosureProof (disclosedProof); 
+  console.log(valid);  
   
   console.log();
   console.log(`The request will be accepted by the payer -------------------------------------------`);
@@ -141,4 +212,28 @@ const createParams: RequestNetwork.Types.ICreateRequestParameters = {
   console.log();
   console.log('######### JSON PROOFS ############');
   console.log(JSON.stringify(proofs))
+  
+
+  const proofsJSON = require(`./data/proof.json`);
+  // TODO CHECK about currency !
+  console.log('## Create')
+  console.log('verified:', await requestNetwork.verifyProof('requestErc20FeeProxy', proofs))
+  console.log('## Accept')
+  console.log('verified:', await requestNetwork.verifyProof('accept', proofs) && proofsJSON.requestErc20FeeProxy.publicSignals[0] == proofsJSON.accept.publicSignals[0])
+  console.log('## Payment')
+  console.log('Payment address:', '0x'+BigInt(proofsJSON.checkBalanceErc20FeeProxy.publicSignals[3]).toString(16))
+  console.log('Payment Reference:', BigInt(proofsJSON.checkBalanceErc20FeeProxy.publicSignals[2]).toString(16).slice(-16))
+  console.log('Payment amount declared:', proofsJSON.checkBalanceErc20FeeProxy.publicSignals[1] == "1" ? proofsJSON.checkBalanceErc20FeeProxy.publicSignals[4] : 'unknown')
+  console.log('verified:', await requestNetwork.verifyProof('checkBalanceErc20FeeProxy', proofs) 
+                                  && proofsJSON.checkBalanceErc20FeeProxy.publicSignals[0] == proofsJSON.accept.publicSignals[0]
+                                  && proofsJSON.checkBalanceErc20FeeProxy.publicSignals[1] == "1"
+                                  && true // TODO check if amount match the address & reference on the Erc20FeeProxy contract
+                                  )
+  console.log("/!\\ on chain check required for the payment")
+  // TODO
+  console.log("## Payee registered")
+  console.log("TODO")
+  console.log("## Payer registered")
+  console.log("TODO")
+
 })()
