@@ -85,7 +85,7 @@ export const twoExtensions = [
 
 export const arbitraryTimestamp = 1544426030;
 
-export const requestCreatedNoExtension: RequestLogicTypes.IRequest = {
+export const requestCreatedNoExtension: any = {
   creator: {
     type: IdentityTypes.TYPE.ETHEREUM_ADDRESS,
     value: payeeRaw.address,
@@ -126,7 +126,7 @@ export const requestCreatedNoExtension: RequestLogicTypes.IRequest = {
   version: CURRENT_VERSION,
 };
 
-export const requestCreatedWithExtensions: RequestLogicTypes.IRequest = {
+export const requestCreatedWithExtensions: any = {
   creator: {
     type: IdentityTypes.TYPE.ETHEREUM_ADDRESS,
     value: payeeRaw.address,
@@ -168,7 +168,7 @@ export const requestCreatedWithExtensions: RequestLogicTypes.IRequest = {
   version: CURRENT_VERSION,
 };
 
-export const requestCanceledNoExtension: RequestLogicTypes.IRequest = {
+export const requestCanceledNoExtension: any = {
   creator: {
     type: IdentityTypes.TYPE.ETHEREUM_ADDRESS,
     value: payeeRaw.address,
@@ -217,7 +217,7 @@ export const requestCanceledNoExtension: RequestLogicTypes.IRequest = {
   version: CURRENT_VERSION,
 };
 
-export const requestAcceptedNoExtension: RequestLogicTypes.IRequest = {
+export const requestAcceptedNoExtension: any = {
   creator: {
     type: IdentityTypes.TYPE.ETHEREUM_ADDRESS,
     value: payeeRaw.address,

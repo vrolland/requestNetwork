@@ -55,6 +55,7 @@ export default class Request {
    */
   private contentData: any | null = null;
 
+  private proofs: any[];
   /**
    * Meta data of the request (e.g: where the data have been retrieved from)
    */
@@ -109,6 +110,7 @@ export default class Request {
     this.skipPaymentDetection = options?.skipPaymentDetection || false;
     this.disableEvents = options?.disableEvents || false;
     this.currencyManager = currencyManager;
+    this.proofs = [];
 
     if (options?.requestLogicCreateResult && !this.disableEvents) {
       const originalEmitter = options.requestLogicCreateResult;
@@ -691,8 +693,21 @@ export default class Request {
       currency: currency ? currency.id : 'unknown',
       currencyInfo: requestData.currency,
       meta: this.requestMeta,
+      proofs: this.proofs,
       pending,
     });
+  }
+
+  public async getSelectDisclosureProof(indexToDisclose: any[]): Promise<any> {
+    if (this.confirmationErrorOccurredAtCreation) {
+      throw Error('request confirmation failed');
+    }
+    let requestData = deepCopy(this.requestData);
+    const merkleproofs =  await this.requestLogic.getSelectDisclosureProof(requestData!, indexToDisclose);
+    return { 
+      requestIdZK: this.requestData?.requestIdCircom,
+      merkleproofs
+    }
   }
 
   public async getEscrowData(
@@ -745,6 +760,7 @@ export default class Request {
     this.requestData = requestAndMeta.result.request;
     this.pendingData = requestAndMeta.result.pending;
     this.requestMeta = requestAndMeta.meta;
+    this.proofs = requestAndMeta.result.proofs;
 
     if (!this.skipPaymentDetection) {
       // let's refresh the balance
@@ -780,5 +796,13 @@ export default class Request {
    */
   public disablePaymentDetection(): void {
     this.skipPaymentDetection = true;
+  }
+
+
+  public async getPaymentProof(): Promise<any> {
+    if(this.balance?.balance || this.balance?.balance === "0") {
+      return this.requestLogic.getPaymentProof(this.requestId, this.balance?.balance);
+    }
+    return null;
   }
 }

@@ -12,6 +12,8 @@ import {
 import RequestLogicCore from './requestLogicCore';
 import { normalizeKeccak256Hash, notNull, uniqueByProperty } from '@requestnetwork/utils';
 
+import { generateProof, getSelectDisclosureProof, checkSelectDisclosureProof } from './circom/zkproof';
+
 /**
  * Implementation of Request Logic
  */
@@ -51,7 +53,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     );
 
     // Validate the action, the apply will throw in case of error
-    RequestLogicCore.applyActionToRequest(null, action, Date.now(), this.advancedLogic);
+    await RequestLogicCore.applyActionToRequest(null, action, Date.now(), this.advancedLogic); // TODO validate the proof
 
     return this.persistTransaction(requestId, action, { requestId }, hashedTopics);
   }
@@ -77,15 +79,17 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
         'You must give at least one encryption parameter to create an encrypted request',
       );
     }
-
-    const { action, requestId, hashedTopics } = await this.createCreationActionRequestIdAndTopics(
+    console.log('JSON.stringify(requestParameters)')
+    console.log(JSON.stringify(requestParameters))
+    console.log('JSON.stringify(requestParameters)')
+    const { action, requestId, proof, hashedTopics } = await this.createCreationActionRequestIdAndTopics(
       requestParameters,
       signerIdentity,
       topics,
     );
 
     // Validate the action, the apply will throw in case of error
-    RequestLogicCore.applyActionToRequest(null, action, Date.now(), this.advancedLogic);
+    await RequestLogicCore.applyActionToRequest(null, action, Date.now(), this.advancedLogic);
 
     return this.persistTransaction(
       requestId,
@@ -93,6 +97,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
       { requestId },
       hashedTopics,
       encryptionParams,
+      proof
     );
   }
 
@@ -119,7 +124,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     );
 
     // Validate the action, the apply will throw in case of error
-    RequestLogicCore.applyActionToRequest(null, action, Date.now(), this.advancedLogic);
+    await RequestLogicCore.applyActionToRequest(null, action, Date.now(), this.advancedLogic);
 
     return RequestLogicCore.getRequestIdFromAction(action);
   }
@@ -136,7 +141,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
   public async acceptRequest(
     requestParameters: RequestLogicTypes.IAcceptParameters,
     signerIdentity: IdentityTypes.IIdentity,
-    validate = false,
+    _validate = false, // TODO
   ): Promise<RequestLogicTypes.IRequestLogicReturnWithConfirmation> {
     if (!this.signatureProvider) {
       throw new Error('You must give a signature provider to create actions');
@@ -147,11 +152,13 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
       this.signatureProvider,
     );
     const requestId = RequestLogicCore.getRequestIdFromAction(action);
-    if (validate) {
-      await this.validateAction(requestId, action);
-    }
+    // if (validate) { // TODO
+    const requestState = await this.validateAction(requestId, action);
+    // }
 
-    return this.persistTransaction(requestId, action, undefined);
+    const proof = await generateProof('accept', requestParameters, this.signatureProvider, requestState); // TODO
+    
+    return this.persistTransaction(requestId, action, undefined, undefined, undefined, proof);
   }
 
   /**
@@ -322,19 +329,19 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
       confirmedRequestState,
       pendingRequestState,
       transactionManagerMeta,
+      proofs,
     } = await this.computeRequestFromRequestId(requestId);
 
     const pending = this.computeDiffBetweenPendingAndConfirmedRequestState(
       confirmedRequestState,
       pendingRequestState,
     );
-
     return {
       meta: {
         ignoredTransactions,
         transactionManagerMeta,
       },
-      result: { request: confirmedRequestState, pending },
+      result: { request: confirmedRequestState, proofs,  pending },
     };
   }
 
@@ -378,6 +385,41 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     return this.computeMultipleRequestFromChannels(getChannelsResult);
   }
 
+
+  // TODO: NOT SUPPOSED TO BE IN REQUEST LOGIC I WOULD SAY
+  public async getPaymentProof(
+    requestId: RequestLogicTypes.RequestId,
+    amountPaid: RequestLogicTypes.Amount,
+  ): Promise<any> {
+    // TODO: this is a shortcut to get state (avoid dealing with pending state)
+    const { confirmedRequestState } = await this.computeRequestFromRequestId(
+      requestId,
+    );
+
+    return generateProof('checkBalanceErc20FeeProxy', {requestId}, undefined, confirmedRequestState, amountPaid);
+  }
+
+  public async getSelectDisclosureProof(
+    requestData: RequestLogicTypes.ICreateParameters | RequestLogicTypes.IRequest,
+    indexToDisclose: any[]
+  ): Promise<any> {
+    const result = getSelectDisclosureProof(
+      requestData,
+      indexToDisclose
+    );
+
+    return result;
+  }
+
+
+  public async checkSelectDisclosureProof(proofs: any): Promise<boolean> {
+    return checkSelectDisclosureProof(
+      proofs
+    );
+  }
+
+  
+
   /**
    * Creates the creation action and the requestId of a request
    *
@@ -393,6 +435,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
   ): Promise<{
     action: RequestLogicTypes.IAction;
     hashedTopics: string[];
+    proof: any,
     requestId: RequestLogicTypes.RequestId;
   }> {
     if (!this.signatureProvider) {
@@ -411,9 +454,12 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
       MultiFormat.serialize(normalizeKeccak256Hash(topic)),
     );
 
+    const proof = await generateProof('requestErc20FeeProxy', requestParameters, this.signatureProvider, null); // TODO
+
     return {
       action,
       hashedTopics,
+      proof,
       requestId,
     };
   }
@@ -429,8 +475,10 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     pendingRequestState: RequestLogicTypes.IRequest | null;
     ignoredTransactions: any[];
     transactionManagerMeta: any;
+    proofs: any[]
   }> {
     const resultGetTx = await this.transactionManager.getTransactionsByChannelId(requestId);
+
     const actions = resultGetTx.result.transactions
       // filter the actions ignored by the previous layers
       .filter(notNull)
@@ -449,6 +497,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
               action: JSON.parse(t.transaction.data || ''),
               state: t.state,
               timestamp: t.timestamp,
+              proof: t.proof,
             };
           } catch (e) {
             // We ignore the transaction.data that cannot be parsed
@@ -473,7 +522,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
       }),
     );
 
-    const { confirmedRequestState, pendingRequestState, ignoredTransactionsByApplication } =
+    const { confirmedRequestState, pendingRequestState, ignoredTransactionsByApplication, proofs } =
       await this.computeRequestFromTransactions(timestampedActionsWithoutDuplicates.uniqueItems);
     ignoredTransactions = ignoredTransactions.concat(ignoredTransactionsByApplication);
 
@@ -482,6 +531,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
       ignoredTransactions,
       pendingRequestState,
       transactionManagerMeta: resultGetTx.meta,
+      proofs,
     };
   }
 
@@ -497,20 +547,25 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     confirmedRequestState: RequestLogicTypes.IRequest | null;
     pendingRequestState: RequestLogicTypes.IRequest | null;
     ignoredTransactionsByApplication: RequestLogicTypes.IIgnoredTransaction[];
+    proofs: any[]
   }> {
     const ignoredTransactionsByApplication: RequestLogicTypes.IIgnoredTransaction[] = [];
+    const proofs: any = [];
 
     // second parameter is null, because the first action must be a creation (no state expected)
-    const confirmedRequestState = transactions
+    const confirmedRequestState = await transactions
       .filter((action) => action.state === TransactionTypes.TransactionState.CONFIRMED)
-      .reduce((requestState, actionConfirmed) => {
+      .reduce(async (requestStateP, actionConfirmed) => {
+        const requestState = await requestStateP;
         try {
-          return RequestLogicCore.applyActionToRequest(
+          const r =  await RequestLogicCore.applyActionToRequest(
             requestState,
             actionConfirmed.action,
             actionConfirmed.timestamp,
             this.advancedLogic,
           );
+          proofs.push(actionConfirmed.proof)
+          return r;
         } catch (e) {
           // if an error occurs while applying we ignore the action
           ignoredTransactionsByApplication.push({
@@ -519,18 +574,20 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
           });
           return requestState;
         }
-      }, null as RequestLogicTypes.IRequest | null);
+      }, Promise.resolve(null as RequestLogicTypes.IRequest | null));
 
-    const pendingRequestState = transactions
+    const pendingRequestState = await transactions
       .filter((action) => action.state === TransactionTypes.TransactionState.PENDING)
-      .reduce((requestState, actionConfirmed) => {
+      .reduce(async (requestStateP, actionConfirmed) => {
+        const requestState = await requestStateP;
         try {
-          return RequestLogicCore.applyActionToRequest(
+          const r = await RequestLogicCore.applyActionToRequest(
             requestState,
             actionConfirmed.action,
             actionConfirmed.timestamp,
             this.advancedLogic,
           );
+          return r;
         } catch (e) {
           // if an error occurs while applying we ignore the action
           ignoredTransactionsByApplication.push({
@@ -539,12 +596,13 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
           });
           return requestState;
         }
-      }, confirmedRequestState);
+      }, Promise.resolve(confirmedRequestState));
 
     return {
       confirmedRequestState,
       ignoredTransactionsByApplication,
       pendingRequestState,
+      proofs,
     };
   }
 
@@ -631,6 +689,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
           finalResult.result.requests.push({
             pending: requestAndMeta.pending,
             request: requestAndMeta.request,
+            proofs: requestAndMeta.proofs,
           });
 
           // workaround to quiet the error "finalResult.meta.ignoredTransactions can be undefined" (but defined in the initialization value of the accumulator)
@@ -665,30 +724,36 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
   private async validateAction(
     requestId: RequestLogicTypes.RequestId,
     action: RequestLogicTypes.IAction,
-  ): Promise<void> {
+  ): Promise<RequestLogicTypes.IRequest | null> {
     const { confirmedRequestState, pendingRequestState } = await this.computeRequestFromRequestId(
       requestId,
     );
 
     try {
       // Check if the action doesn't fail with the request state
-      RequestLogicCore.applyActionToRequest(
+      await RequestLogicCore.applyActionToRequest(
         confirmedRequestState,
         action,
         Date.now(),
         this.advancedLogic,
       );
+
+      // TODO: 
+      return confirmedRequestState;
     } catch (error) {
       // Check if the action works with the pending state
       if (pendingRequestState) {
-        RequestLogicCore.applyActionToRequest(
+        await RequestLogicCore.applyActionToRequest(
           pendingRequestState,
           action,
           Date.now(),
           this.advancedLogic,
         );
+        // TODO return
       }
     }
+    // TODO
+    return null;
   }
 
   /**
@@ -784,12 +849,14 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     result: T,
     topics: string[] = [],
     encryptionParams: EncryptionTypes.IEncryptionParameters[] = [],
+    proof ?: any
   ) {
     const resultPersistTx = await this.transactionManager.persistTransaction(
       JSON.stringify(action),
       requestId,
       topics,
       encryptionParams,
+      proof
     );
 
     const eventEmitter = new EventEmitter();

@@ -3,9 +3,13 @@ import { ethers } from 'ethers';
 import {
   ecRecover,
   ecSign,
-  getAddressFromPrivateKey,
+  edSign,
+  getAddressFromEcPrivateKey,
+  getPublicKeyFromEdPrivateKey,
+  getAddressFromEdPublicKey,
   normalize,
   normalizeKeccak256Hash,
+  edVerify
 } from './crypto';
 
 /**
@@ -15,6 +19,7 @@ export { getIdentityFromSignatureParams, recoverSigner, sign };
 
 // Use to localize the parameter V in an ECDSA signature in hex format
 const V_POSITION_FROM_END_IN_ECDSA_HEX = -2;
+const PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX = -128;
 
 /**
  * Function to get the signer identity from the signature parameters
@@ -29,7 +34,7 @@ function getIdentityFromSignatureParams(
   if (signatureParams.method === SignatureTypes.METHOD.ECDSA) {
     return {
       type: IdentityTypes.TYPE.ETHEREUM_ADDRESS,
-      value: getAddressFromPrivateKey(signatureParams.privateKey),
+      value: getAddressFromEcPrivateKey(signatureParams.privateKey),
     };
   }
 
@@ -45,10 +50,11 @@ function getIdentityFromSignatureParams(
  * @param signatureParams Signature parameters
  * @returns ISignature the signature
  */
-function sign(
+async function sign(
   data: unknown,
   signatureParams: SignatureTypes.ISignatureParameters,
-): SignatureTypes.ISignedData {
+  rawSignature: boolean = false,
+): Promise<SignatureTypes.ISignedData> {
   let value: string;
   if (signatureParams.method === SignatureTypes.METHOD.ECDSA) {
     value = ecSign(signatureParams.privateKey, normalizeKeccak256Hash(data).value);
@@ -62,6 +68,15 @@ function sign(
     return { data, signature: { method: signatureParams.method, value } };
   }
 
+  if (signatureParams.method === SignatureTypes.METHOD.EDDSA_POSEIDON) {
+    const dataToSign = rawSignature ? data : normalizeKeccak256Hash(data).value;
+
+    value = await edSign(signatureParams.privateKey, dataToSign as string);
+    const pubKey = await getPublicKeyFromEdPrivateKey(signatureParams.privateKey);
+
+    return { data, signature: { method: signatureParams.method, value: value.concat(pubKey) }, raw: rawSignature };
+  }
+
   throw new Error('signatureParams.method not supported');
 }
 
@@ -73,7 +88,7 @@ function sign(
  * @param signedData the data signed
  * @returns identity of the signer
  */
-function recoverSigner(signedData: SignatureTypes.ISignedData): IdentityTypes.IIdentity {
+async function recoverSigner(signedData: SignatureTypes.ISignedData): Promise<IdentityTypes.IIdentity> {
   let value: string;
   if (signedData.signature.method === SignatureTypes.METHOD.ECDSA) {
     value = ecRecover(signedData.signature.value, normalizeKeccak256Hash(signedData.data).value);
@@ -101,6 +116,26 @@ function recoverSigner(signedData: SignatureTypes.ISignedData): IdentityTypes.II
       type: IdentityTypes.TYPE.ETHEREUM_ADDRESS,
       value,
     };
+  }
+
+  if (signedData.signature.method === SignatureTypes.METHOD.EDDSA_POSEIDON) {
+    const pubkeyHex = signedData.signature.value.slice(PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX);
+    const packedSignatureHex = signedData.signature.value.slice(0, PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX);
+
+    // const dataToVerify = signedData.raw ? signedData.data : ethers.utils.hashMessage(normalize(signedData.data));
+    const dataToVerify = signedData.raw ? signedData.data : normalizeKeccak256Hash(signedData.data).value;
+
+    const verified = await edVerify(packedSignatureHex, dataToVerify, pubkeyHex);
+
+    if(verified) {
+      return {
+        type: IdentityTypes.TYPE.POSEIDON_ADDRESS,
+        value: await getAddressFromEdPublicKey(pubkeyHex),
+      };
+    } else {
+      throw new Error('invalid signature');
+    }
+
   }
 
   throw new Error('signatureParams.method not supported');

@@ -42,6 +42,7 @@ export default class TransactionManager implements TransactionTypes.ITransaction
     channelId: string,
     topics: string[] = [],
     encryptionParams: EncryptionTypes.IEncryptionParameters[] = [],
+    proof: any,
   ): Promise<TransactionTypes.IReturnPersistTransaction> {
     let transaction: TransactionTypes.IPersistedTransaction = {};
     let channelEncryptionMethod: string | undefined;
@@ -59,10 +60,10 @@ export default class TransactionManager implements TransactionTypes.ITransaction
         transaction = await TransactionsFactory.createEncryptedTransactionInNewChannel(
           transactionData,
           encryptionParams,
+          proof,
         );
         channelEncryptionMethod = transaction.encryptionMethod;
       }
-
       // Add the transaction to an existing channel
     } else {
       const resultGetTx = await this.dataAccess.getTransactionsByChannelId(channelId);
@@ -91,6 +92,7 @@ export default class TransactionManager implements TransactionTypes.ITransaction
           transactionData,
           channelKey,
           encryptionParams,
+          proof
         );
 
         channelEncryptionMethod = encryptionMethod;
@@ -151,7 +153,6 @@ export default class TransactionManager implements TransactionTypes.ITransaction
       channelId,
       timestampBoundaries,
     );
-
     // Decrypts and cleans the channel from the data-access layers
     const { transactions, ignoredTransactions, encryptionMethod } =
       await this.channelParser.decryptAndCleanChannel(channelId, resultGetTx.result.transactions);

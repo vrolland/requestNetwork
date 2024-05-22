@@ -18,10 +18,12 @@ export interface ISignature {
 export enum METHOD {
   ECDSA = 'ecdsa',
   ECDSA_ETHEREUM = 'ecdsa-ethereum',
+  EDDSA_POSEIDON = 'eddsa-poseidon',
 }
 
 /** Signed data interface */
 export interface ISignedData {
   data: any;
   signature: ISignature;
+  raw?: boolean;
 }
