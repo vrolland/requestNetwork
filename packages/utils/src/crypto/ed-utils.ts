@@ -103,7 +103,7 @@ function getAddressFromPublicKey(publicKey: string): string {
  *
  * @returns the signature
  */
-async function edSign(privateKey: string, data: string): Promise<string> {
+function edSign(privateKey: string, data: string): string {
   // const eddsa = await circomlibjs.buildEddsa();
   // const payeePrivBuff = Buffer.from(privateKey, "hex");
   // const dataBuff = Buffer.from(data.slice(2), "hex");

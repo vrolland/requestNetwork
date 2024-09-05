@@ -16,7 +16,8 @@ type ISignatureParametersDictionary = Map<string, SignatureTypes.ISignatureParam
  * Allows to sign() with "Ethereum_address" identities thanks to their private key given in constructor() or addSignatureParameters()
  */
 export default class EthereumPrivateKeySignatureProvider
-  implements SignatureProviderTypes.ISignatureProvider {
+  implements SignatureProviderTypes.ISignatureProvider
+{
   /** list of supported signing method */
   public supportedMethods: SignatureTypes.METHOD[] = [
     SignatureTypes.METHOD.ECDSA,
@@ -63,9 +64,8 @@ export default class EthereumPrivateKeySignatureProvider
     }
 
     // toLowerCase to avoid mismatch because of case
-    const signatureParameter:
-      | SignatureTypes.ISignatureParameters
-      | undefined = this.signatureParametersDictionary.get(actualSigner.value.toLowerCase());
+    const signatureParameter: SignatureTypes.ISignatureParameters | undefined =
+      this.signatureParametersDictionary.get(actualSigner.value.toLowerCase());
 
     if (!signatureParameter) {
       throw Error(`private key unknown for the address ${actualSigner.value}`);
@@ -86,8 +86,8 @@ export default class EthereumPrivateKeySignatureProvider
     } else if (method === SignatureTypes.METHOD.EDDSA_POSEIDON) {
       // the hash format in request start by 01 but the ec-utils need a hash starting by 0x
       const dataToSign = rawSignature ? data : normalizeKeccak256Hash(data).value;
-      const signatureValue = await edSign(signatureParameter.privateKey, dataToSign);
-      const pubKey = await getPublicKeyFromEdPrivateKey(signatureParameter.privateKey);
+      const signatureValue = edSign(signatureParameter.privateKey, dataToSign);
+      const pubKey = getPublicKeyFromEdPrivateKey(signatureParameter.privateKey);
       return {
         data,
         signature: {

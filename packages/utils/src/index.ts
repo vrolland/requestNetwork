@@ -26,6 +26,7 @@ export {
   normalize,
   normalizeKeccak256Hash,
   getPublicKeyFromEdPrivateKey,
+  getAddressFromEcPrivateKey,
 } from './crypto';
 
 export { decrypt, encrypt, getIdentityFromEncryptionParams } from './encryption';
