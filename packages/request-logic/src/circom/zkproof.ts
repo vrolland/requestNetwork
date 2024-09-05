@@ -1,7 +1,4 @@
-/* @ts-lint no-unused-vars */
-// const snarkjs = require("snarkjs");
 import * as snarkjs from 'snarkjs';
-
 import { unpackSignature } from '@zk-kit/eddsa-poseidon';
 import { poseidon as iden3Poseidon } from '@iden3/js-crypto';
 
