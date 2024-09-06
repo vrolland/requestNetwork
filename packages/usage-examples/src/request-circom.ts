@@ -1,5 +1,4 @@
 // import { providers, Wallet } from 'ethers';
-// const circomlibjs = require('circomlibjs');
 
 import { EthereumPrivateKeyDecryptionProvider } from '@requestnetwork/epk-decryption';
 import { EthereumPrivateKeySignatureProvider } from '@requestnetwork/epk-signature';
@@ -90,9 +89,9 @@ const createParams: RequestNetwork.Types.ICreateRequestParameters = {
 };
 
 (async () => {
-  //   const mnemonic = 'candy maple cake sugar pudding cream honey rich smooth crumble sweet treat';
-  //   const provider = new providers.JsonRpcProvider('http://localhost:8545');
-  //   const wallet = Wallet.fromMnemonic(mnemonic).connect(provider);
+  // const mnemonic = 'candy maple cake sugar pudding cream honey rich smooth crumble sweet treat';
+  // const provider = new providers.JsonRpcProvider('http://localhost:8545');
+  // const wallet = Wallet.fromMnemonic(mnemonic).connect(provider);
 
   const payeeIDreturn = signatureProvider.addSignatureParameters(payeeSignatureInfo);
   const payerIDreturn = signatureProvider.addSignatureParameters(payerSignatureInfo);
@@ -160,7 +159,9 @@ const createParams: RequestNetwork.Types.ICreateRequestParameters = {
   );
   await request1.accept(payerIdentity);
   console.log(`Accept confirmed!`);
+
   /*
+
   console.log();
   console.log(`The request will be paid by the payer -------------------------------------------`);
   const paymentReq1 = await RequestPaymentProcessor.payErc20FeeProxyRequest(request1.getData(), wallet);

@@ -70,9 +70,6 @@ async function checkSelectDisclosureProof(proofs: any): Promise<boolean> {
 
   let isValidPN = false;
   if (proofReq[3] && proofReq[3][7]) {
-    // const poseidon = await circomlibjs.buildPoseidon();
-    // const F = poseidon.F;
-    // const rootPN = F.e(proofReq[3][7]).toString('hex');
     const rootPN = proofReq[3][7];
 
     isValidPN = await validMerkleProof(rootPN, proofPN);
@@ -84,8 +81,6 @@ async function checkSelectDisclosureProof(proofs: any): Promise<boolean> {
 }
 
 async function validMerkleProof(root: bigint, proof: any): Promise<boolean> {
-  // const poseidon = await circomlibjs.buildPoseidon();
-
   const l1 = [].concat(proof[0]);
   const l2 = [].concat(proof[1]);
   const l3 = [].concat(proof[2]);
@@ -119,35 +114,6 @@ async function validMerkleProof(root: bigint, proof: any): Promise<boolean> {
 
   return root === computedRoot;
 }
-
-// async function convertUint8ArrayToHexAsync(data:any): Promise<any> {
-//     const poseidon = await circomlibjs.buildPoseidon();
-//     const F = poseidon.F;
-
-//     if (data instanceof Uint8Array) {
-//       return await F.toObject(data);;
-//     } else if (Array.isArray(data)) {
-//       // Itère récursivement sur les éléments s'il s'agit d'un tableau
-//       const arrayPromises:any = data.map(async (item) => await convertUint8ArrayToHexAsync(item));
-//       return Promise.all(arrayPromises);
-//     } else if (data && typeof data === 'object') {
-//       // Itère récursivement sur les propriétés s'il s'agit d'un objet
-//       const keys = Object.keys(data);
-//       const objPromises:any = keys.map(async (key) => {
-//         const value = await convertUint8ArrayToHexAsync(data[key]);
-//         return [key, value]; // Retourne une paire clé-valeur
-//       });
-//       // Construit un nouvel objet à partir des paires clé-valeur résolues
-//       const resolvedPairs = await Promise.all(objPromises);
-//       return resolvedPairs.reduce((acc, [key, value]) => {
-//         acc[key] = value;
-//         return acc;
-//       }, {});
-//     } else {
-//       // Retourne la donnée sans modification si elle ne correspond à aucun cas précédent
-//       return data;
-//     }
-//   }
 
 class MerlkeTreeRequest {
   root = '';
@@ -207,9 +173,6 @@ class MerlkeTreeRequest {
 function computeRequestMerkleTrees(
   requestParameters: RequestLogicTypes.ICreateParameters | RequestLogicTypes.IRequest,
 ): any[] {
-  // const poseidon = await circomlibjs.buildPoseidon();
-  // const F = poseidon.F;
-
   const pn = requestParameters.extensionsData?.find(
     (e) => e.id === ExtensionTypes.PAYMENT_NETWORK_ID.ERC20_FEE_PROXY_CONTRACT,
   );
@@ -314,10 +277,6 @@ async function createInputs(
   if (!signatureProvider) {
     throw Error('must have a signatureProvider');
   }
-
-  // const poseidon = await circomlibjs.buildPoseidon();
-  // const F = poseidon.F;
-  // const eddsa = await circomlibjs.buildEddsa();
 
   const pn = requestParameters.extensionsData?.find(
     (e) => e.id === ExtensionTypes.PAYMENT_NETWORK_ID.ERC20_FEE_PROXY_CONTRACT,
@@ -430,10 +389,6 @@ async function acceptInputs(
   signatureProvider?: SignatureProviderTypes.ISignatureProvider,
   requestState?: RequestLogicTypes.IRequest | null,
 ): Promise<any> {
-  // const poseidon = await circomlibjs.buildPoseidon();
-  // const F = poseidon.F;
-  // const eddsa = await circomlibjs.buildEddsa();
-
   if (!signatureProvider) {
     throw Error('must have a signatureProvider');
   }
@@ -548,9 +503,6 @@ async function checkBalanceErc20FeeProxyInputs(
   requestState?: RequestLogicTypes.IRequest | null,
   amountPaid?: RequestLogicTypes.Amount, // TODO Balance (take in account refunds)
 ): Promise<any> {
-  // const poseidon = await circomlibjs.buildPoseidon();
-  // const F = poseidon.F;
-
   if (!requestState) {
     throw Error('request must have a state');
   }
