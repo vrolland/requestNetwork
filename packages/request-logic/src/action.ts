@@ -5,6 +5,7 @@ import Role from './role';
 import Version from './version';
 import { normalizeKeccak256Hash, recoverSigner } from '@requestnetwork/utils';
 import { computeRequestIdCircom } from './circom/zkproof';
+import { bigIntToHexadecimal } from '@zk-kit/utils';
 
 /**
  * Function to manage Request logic action (object that will be interpreted to create or modify a request)
@@ -99,8 +100,8 @@ function getRequestIdCircom(action: RequestLogicTypes.IAction): RequestLogicType
   // if a creation we need to compute the hash
   if (action.data.name === RequestLogicTypes.ACTION_NAME.CREATE) {
     const idBuff = computeRequestIdCircom(action.data.parameters);
-    // return Buffer.from(idBuff).toString('hex');
-    return idBuff;
+    return bigIntToHexadecimal(BigInt(idBuff));
+    // return idBuff;
   }
   return action.data.parameters.requestIdCircom;
 }

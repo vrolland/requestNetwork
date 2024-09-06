@@ -1,5 +1,6 @@
 import * as snarkjs from 'snarkjs';
-import { unpackSignature } from '@zk-kit/eddsa-poseidon';
+import { unpackPublicKey, unpackSignature } from '@zk-kit/eddsa-poseidon';
+import { bigIntToHexadecimal, hexadecimalToBigInt, hexadecimalToBuffer } from '@zk-kit/utils';
 import { poseidon as iden3Poseidon } from '@iden3/js-crypto';
 
 import {
@@ -9,7 +10,8 @@ import {
   SignatureProviderTypes,
 } from '@requestnetwork/types';
 
-const PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX = -128;
+// const PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX = -128;
+const PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX = -64;
 
 export {
   generateProof,
@@ -148,7 +150,6 @@ async function validMerkleProof(root: bigint, proof: any): Promise<boolean> {
 //   }
 
 class MerlkeTreeRequest {
-  init = false;
   root = '';
   l1 = [null, null];
   l2 = [null, null, null, null];
@@ -163,7 +164,7 @@ class MerlkeTreeRequest {
     this.leaves = _leaves;
     this.hash = _hash;
 
-    this.l3 = this.leaves.map(async (v: any, i: any) => {
+    this.l3 = this.leaves.map((v: any, i: any) => {
       return this.hash([i, v, 1]);
     });
     this.l2 = this.l2.map((_, i) => this.hash([this.l3[i * 2], this.l3[i * 2 + 1]]));
@@ -173,10 +174,6 @@ class MerlkeTreeRequest {
   }
 
   createMultiProof(indexToShow: any[] = []) {
-    if (!this.init) {
-      throw 'merkle tree not initialized';
-    }
-
     if (indexToShow.length === 0) {
       return [];
     }
@@ -243,21 +240,20 @@ function computeRequestMerkleTrees(
   const nonce = requestParameters.nonce || 0;
 
   const paymentNetworkLeaves = [
-    salt,
+    hexadecimalToBigInt(salt),
     chainId,
-    pn.parameters.feeAddress,
-    pn.parameters.feeAmount,
-    pn.parameters.paymentAddress,
-    pn.parameters.refundAddress,
+    hexadecimalToBigInt(pn.parameters.feeAddress),
+    hexadecimalToBigInt(pn.parameters.feeAmount),
+    hexadecimalToBigInt(pn.parameters.paymentAddress),
+    hexadecimalToBigInt(pn.parameters.refundAddress),
     0,
     0,
   ];
-
   const pnMerkleTree = new MerlkeTreeRequest(paymentNetworkLeaves, poseidon);
 
   const requestLeaves = [
-    requestParameters.payee!.value, // F.toObject(Buffer.from(requestParameters.payee!.value, 'hex')),
-    requestParameters.payer!.value, // F.toObject(Buffer.from(requestParameters.payer!.value, 'hex')),
+    hexadecimalToBigInt(requestParameters.payee!.value), // F.toObject(Buffer.from(requestParameters.payee!.value, 'hex')),
+    hexadecimalToBigInt(requestParameters.payer!.value), // F.toObject(Buffer.from(requestParameters.payer!.value, 'hex')),
     0, // requestParameters.timestamp,
     nonce,
 
@@ -352,19 +348,20 @@ async function createInputs(
   const nonce = requestParameters.nonce || 0;
 
   const paymentNetworkLeaves = [
-    salt,
+    hexadecimalToBigInt(salt),
     chainId,
-    pn.parameters.feeAddress,
-    pn.parameters.feeAmount,
-    pn.parameters.paymentAddress,
-    pn.parameters.refundAddress,
+    hexadecimalToBigInt(pn.parameters.feeAddress),
+    hexadecimalToBigInt(pn.parameters.feeAmount),
+    hexadecimalToBigInt(pn.parameters.paymentAddress),
+    hexadecimalToBigInt(pn.parameters.refundAddress),
     0,
     0,
   ];
+
   // const pnMerkleTree = new MerlkeTreeRequest(paymentNetworkLeaves, poseidon);
 
   const requestLeaves = [
-    requestParameters.payer!.value, // F.toObject(Buffer.from(requestParameters.payer!.value, 'hex')),
+    hexadecimalToBigInt(requestParameters.payer!.value), // F.toObject(Buffer.from(requestParameters.payer!.value, 'hex')),
     0, // requestParameters.timestamp,
     nonce,
     requestParameters.expectedAmount,
@@ -372,9 +369,8 @@ async function createInputs(
     contentDataHash,
     // F.toObject(pnMerkleTree.root),
   ];
-  // console.log("##############");
-  // console.log(requestLeaves);
-  // console.log("##############");
+
+  // TODO TODO TODO
   const treeRoot = await computeRequestIdCircom(requestParameters);
 
   if (
@@ -383,8 +379,10 @@ async function createInputs(
   ) {
     throw Error('Payee must be given and POSEIDON itdentity'); // TODO
   }
+
   const signedData = await signatureProvider.sign(
-    '0x' + Buffer.from(treeRoot).toString('hex'),
+    '0x' + bigIntToHexadecimal(BigInt(treeRoot)),
+    // '0x' + Buffer.from(treeRoot).toString('hex'),
     requestParameters.payee,
     true,
   );
@@ -395,25 +393,36 @@ async function createInputs(
     PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX,
   );
 
-  const publicKeyLength = pubkeyHex.length / 2;
-  const Ax = Buffer.from(pubkeyHex.slice(0, publicKeyLength), 'hex');
-  const Ay = Buffer.from(pubkeyHex.slice(publicKeyLength, publicKeyLength * 2), 'hex');
+  const pubBigInt = hexadecimalToBigInt(pubkeyHex);
+  const unpackedPub = unpackPublicKey(pubBigInt);
+
+  // console.log('unpackedPub')
+  // console.log(unpackedPub)
+
+  // const publicKeyLength = pubkeyHex.length / 2;
+  // const Ax = bigIntToHexadecimal(unpackedPub[0]); // Buffer.from(pubkeyHex.slice(0, publicKeyLength), 'hex');
+  // const Ay = bigIntToHexadecimal(unpackedPub[1]); // Buffer.from(pubkeyHex.slice(publicKeyLength, publicKeyLength * 2), 'hex');
+
+  console.log('packedSignatureHex');
+  console.log(packedSignatureHex);
 
   // const signatureBuff = eddsa.unpackSignature(Buffer.from(packedSignatureHex, 'hex'));
-  const signatureBuff = unpackSignature(Buffer.from(packedSignatureHex, 'hex'));
+  // const signatureBuff = unpackSignature(Buffer.from(packedSignatureHex, 'hex'));
+  const signatureBuff = unpackSignature(hexadecimalToBuffer(packedSignatureHex));
 
-  // console.log({signatureBuff});
+  console.log('signatureBuff');
+  console.log(signatureBuff);
+
   const inputs = {
     requestInputs: requestLeaves,
     paymentNetworkInputs: paymentNetworkLeaves,
-    Ax, // : F.toObject(Ax),
-    Ay, //: F.toObject(Ay),
+    Ax: unpackedPub[0], // : F.toObject(Ax),
+    Ay: unpackedPub[1], //: F.toObject(Ay),
     R8x: signatureBuff.R8[0], //: F.toObject(signatureBuff.R8[0]),
     R8y: signatureBuff.R8[1], //F.toObject(signatureBuff.R8[1]),
     S: signatureBuff.S,
   };
-
-  // console.log(inputs)
+  console.log(inputs);
   return inputs;
 }
 
@@ -465,20 +474,20 @@ async function acceptInputs(
   const nonce = requestState.nonce || 0;
 
   const paymentNetworkLeaves = [
-    salt,
+    hexadecimalToBigInt(salt),
     chainId,
-    pn.parameters.feeAddress,
-    pn.parameters.feeAmount,
-    pn.parameters.paymentAddress,
-    pn.parameters.refundAddress,
+    hexadecimalToBigInt(pn.parameters.feeAddress),
+    hexadecimalToBigInt(pn.parameters.feeAmount),
+    hexadecimalToBigInt(pn.parameters.paymentAddress),
+    hexadecimalToBigInt(pn.parameters.refundAddress),
     0,
     0,
   ];
   const pnMerkleTree = new MerlkeTreeRequest(paymentNetworkLeaves, poseidon);
 
   const requestLeaves = [
-    requestState.payee!.value, //F.toObject(Buffer.from(requestState.payee!.value, 'hex')),
-    requestState.payer!.value, //F.toObject(Buffer.from(requestState.payer!.value, 'hex')),
+    hexadecimalToBigInt(requestState.payee!.value), // F.toObject(Buffer.from(requestState.payee!.value, 'hex')),
+    hexadecimalToBigInt(requestState.payer!.value), // F.toObject(Buffer.from(requestState.payer!.value, 'hex')),
     requestState.timestamp,
     nonce,
     requestState.expectedAmount,
@@ -502,7 +511,8 @@ async function acceptInputs(
   // 0 1 2 3 4 5 6 7
 
   const signedData = await signatureProvider.sign(
-    '0x' + Buffer.from(treeRoot).toString('hex'),
+    '0x' + bigIntToHexadecimal(BigInt(treeRoot)),
+    // '0x' + Buffer.from(treeRoot).toString('hex'),
     requestState.payer,
     true,
   );
@@ -513,9 +523,8 @@ async function acceptInputs(
     PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX,
   );
 
-  const publicKeyLength = pubkeyHex.length / 2;
-  const Ax = Buffer.from(pubkeyHex.slice(0, publicKeyLength), 'hex');
-  const Ay = Buffer.from(pubkeyHex.slice(publicKeyLength, publicKeyLength * 2), 'hex');
+  const pubBigInt = hexadecimalToBigInt(pubkeyHex);
+  const unpackedPub = unpackPublicKey(pubBigInt);
 
   // const signatureBuff = eddsa.unpackSignature(Buffer.from(packedSignatureHex, 'hex'));
   const signatureBuff = unpackSignature(Buffer.from(packedSignatureHex, 'hex'));
@@ -525,8 +534,8 @@ async function acceptInputs(
     hB, //: F.toObject(hB),
     hCD, //: F.toObject(hCD),
 
-    Ax, //: F.toObject(Ax),
-    Ay, //: F.toObject(Ay),
+    Ax: unpackedPub[0], //: F.toObject(Ax),
+    Ay: unpackedPub[1], //: F.toObject(Ay),
     R8x: signatureBuff.R8[0], //F.toObject(signatureBuff.R8[0]),
     R8y: signatureBuff.R8[1], // F.toObject(signatureBuff.R8[1]),
     S: signatureBuff.S,
@@ -582,20 +591,20 @@ async function checkBalanceErc20FeeProxyInputs(
   const nonce = requestState.nonce || 0;
 
   const paymentNetworkLeaves = [
-    salt,
+    hexadecimalToBigInt(salt),
     chainId,
-    pn.parameters.feeAddress,
-    pn.parameters.feeAmount,
-    pn.parameters.paymentAddress,
-    pn.parameters.refundAddress,
+    hexadecimalToBigInt(pn.parameters.feeAddress),
+    hexadecimalToBigInt(pn.parameters.feeAmount),
+    hexadecimalToBigInt(pn.parameters.paymentAddress),
+    hexadecimalToBigInt(pn.parameters.refundAddress),
     0,
     0,
   ];
   // const pnMerkleTree = new MerlkeTreeRequest(paymentNetworkLeaves, poseidon);
 
   const requestLeaves = [
-    requestState.payee!.value, // F.toObject(Buffer.from(requestState.payee!.value, 'hex')),
-    requestState.payer!.value, // F.toObject(Buffer.from(requestState.payer!.value, 'hex')),
+    hexadecimalToBigInt(requestState.payee!.value), // F.toObject(Buffer.from(requestState.payee!.value, 'hex')),
+    hexadecimalToBigInt(requestState.payer!.value), // F.toObject(Buffer.from(requestState.payer!.value, 'hex')),
     requestState.timestamp,
     nonce,
     requestState.expectedAmount,
@@ -609,9 +618,6 @@ async function checkBalanceErc20FeeProxyInputs(
     paymentNetworkInputs: paymentNetworkLeaves,
     amountPaid,
   };
-
-  console.log('inputs');
-  console.log(inputs);
 
   return inputs;
 }

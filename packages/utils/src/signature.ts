@@ -5,6 +5,7 @@ import {
   ecSign,
   edSign,
   getAddressFromEcPrivateKey,
+  getAddressFromEdPrivateKey,
   getPublicKeyFromEdPrivateKey,
   getAddressFromEdPublicKey,
   normalize,
@@ -19,7 +20,7 @@ export { getIdentityFromSignatureParams, recoverSigner, sign };
 
 // Use to localize the parameter V in an ECDSA signature in hex format
 const V_POSITION_FROM_END_IN_ECDSA_HEX = -2;
-const PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX = -128;
+const PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX = -64;
 
 /**
  * Function to get the signer identity from the signature parameters
@@ -35,6 +36,13 @@ function getIdentityFromSignatureParams(
     return {
       type: IdentityTypes.TYPE.ETHEREUM_ADDRESS,
       value: getAddressFromEcPrivateKey(signatureParams.privateKey),
+    };
+  }
+
+  if (signatureParams.method === SignatureTypes.METHOD.EDDSA_POSEIDON) {
+    return {
+      type: IdentityTypes.TYPE.POSEIDON_ADDRESS,
+      value: getAddressFromEdPrivateKey(signatureParams.privateKey),
     };
   }
 
@@ -123,6 +131,11 @@ function recoverSigner(signedData: SignatureTypes.ISignedData): IdentityTypes.II
   }
 
   if (signedData.signature.method === SignatureTypes.METHOD.EDDSA_POSEIDON) {
+    // const pubkeyHex = signedData.signature.value.slice(PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX);
+    // const packedSignatureHex = signedData.signature.value.slice(
+    //   0,
+    //   PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX,
+    // );
     const pubkeyHex = signedData.signature.value.slice(PUBKEY_POSITION_FROM_END_IN_EDDSA_HEX);
     const packedSignatureHex = signedData.signature.value.slice(
       0,

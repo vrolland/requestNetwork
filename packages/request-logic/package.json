@@ -46,7 +46,9 @@
     "@requestnetwork/types": "0.45.0",
     "@requestnetwork/utils": "0.45.0",
     "@zk-kit/eddsa-poseidon": "^1.0.2",
+    "@zk-kit/utils": "^1.2.0",
     "semver": "7.5.4",
+    "snarkjs": "^0.7.4",
     "tslib": "2.5.0"
   },
   "devDependencies": {

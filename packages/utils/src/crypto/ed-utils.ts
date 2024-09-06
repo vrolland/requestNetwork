@@ -8,7 +8,12 @@ import {
   verifySignature,
 } from '@zk-kit/eddsa-poseidon';
 
-import { bigIntToHexadecimal, hexadecimalToBigInt, hexadecimalToBuffer } from '@zk-kit/utils';
+import {
+  bigIntToHexadecimal,
+  bufferToHexadecimal,
+  hexadecimalToBigInt,
+  hexadecimalToBuffer,
+} from '@zk-kit/utils';
 
 import { poseidon } from '@iden3/js-crypto';
 
@@ -115,7 +120,9 @@ function edSign(privateKey: string, data: string): string {
   const privateKeyBuff = Buffer.from(privateKey, 'hex');
 
   const signature = signMessage(privateKeyBuff, dataBuff);
-  return packSignature(signature).toString('hex');
+  const packedSignature = packSignature(signature);
+
+  return bufferToHexadecimal(packedSignature);
 }
 
 /**
