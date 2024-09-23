@@ -66,6 +66,13 @@ export interface IRequestLogic {
     topics: any[],
     updatedBetween?: ITimestampBoundaries,
   ) => Promise<IReturnGetRequestsByTopic>;
+  getPaymentProof: (requestId: RequestId, amountPaid: Amount) => Promise<any>;
+
+  getSelectDisclosureProof: (
+    requestData: ICreateParameters | IRequest,
+    indexToDisclose: any[],
+  ) => Promise<any>;
+  checkSelectDisclosureProof: (proofs: any) => Promise<boolean>;
 }
 
 /** Restrict research to two timestamp */
@@ -103,12 +110,14 @@ export interface IReturnCreateRequest extends IRequestLogicReturnWithConfirmatio
 
 /** return of the function getFirstRequestFromTopic */
 export interface IReturnGetRequestFromId extends IRequestLogicReturn {
-  result: { request: IRequest | null; pending: IPendingRequest | null };
+  result: { request: IRequest | null; pending: IPendingRequest | null; proofs: any[] };
 }
 
 /** return of the function getRequestsByTopic */
 export interface IReturnGetRequestsByTopic extends IRequestLogicReturn {
-  result: { requests: Array<{ request: IRequest | null; pending: IPendingRequest | null }> };
+  result: {
+    requests: Array<{ request: IRequest | null; pending: IPendingRequest | null; proofs: any[] }>;
+  };
 }
 
 /** Interface of a request logic action */
@@ -122,6 +131,7 @@ export interface IConfirmedAction {
   state: Transaction.TransactionState;
   action: IAction;
   timestamp: number;
+  proof?: any;
 }
 
 export interface IIgnoredTransaction {
@@ -141,6 +151,7 @@ export interface IRequest {
   version: string;
   /** request identifier */
   requestId: RequestId;
+  requestIdCircom: RequestIdCircom;
   /** identity of the request creator (the one who initiates it) */
   creator: Identity.IIdentity;
   currency: ICurrency;
@@ -176,6 +187,7 @@ export type Amount = number | string;
 
 /** RequestId */
 export type RequestId = string;
+export type RequestIdCircom = string;
 
 /** Configuration for the versioning */
 export interface IVersionSupportConfig {
@@ -319,4 +331,26 @@ export enum ROLE {
   PAYEE = 'payee',
   PAYER = 'payer',
   THIRD_PARTY = 'third-party',
+}
+
+export enum PN_ERC20PROXYFEE_INDEX_PARAMS {
+  SALT = 10,
+  CHAINID,
+  FEEADDRESS,
+  FEEAMOUNT,
+  PAYMENTADDRESS,
+  REFUNDADDRESS,
+  PAYMENTINFO,
+  REFUNDINFO,
+}
+
+export enum REQUEST_INDEX_PARAMS {
+  PAYEE = 0,
+  PAYER,
+  TIMESTAMP,
+  NONCE,
+  EXPECTEDAMOUNT,
+  CURRENCY,
+  CONTENTDATA_ROOT,
+  PN_ROOT,
 }

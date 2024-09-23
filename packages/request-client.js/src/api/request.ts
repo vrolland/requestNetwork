@@ -78,6 +78,8 @@ export default class Request {
    */
   private currencyManager: CurrencyTypes.ICurrencyManager;
 
+  private proofs: any[];
+
   /**
    * Information for an in-memory request, including transaction data, topics, and payment request data.
    * This is used for requests that haven't been persisted yet, allowing for operations like payments
@@ -121,6 +123,7 @@ export default class Request {
     this.disableEvents = options?.disableEvents || false;
     this.currencyManager = currencyManager;
     this.inMemoryInfo = options?.inMemoryInfo || null;
+    this.proofs = [];
 
     if (options?.requestLogicCreateResult && !this.disableEvents) {
       const originalEmitter = options.requestLogicCreateResult;
@@ -715,6 +718,7 @@ export default class Request {
       currency: currency ? currency.id : 'unknown',
       currencyInfo: requestData.currency,
       meta: this.requestMeta,
+      proofs: this.proofs,
       pending,
     });
   }
@@ -769,6 +773,7 @@ export default class Request {
     this.requestData = requestAndMeta.result.request;
     this.pendingData = requestAndMeta.result.pending;
     this.requestMeta = requestAndMeta.meta;
+    this.proofs = requestAndMeta.result.proofs;
 
     if (!this.skipPaymentDetection) {
       // let's refresh the balance
@@ -776,6 +781,13 @@ export default class Request {
     }
 
     return this.getData();
+  }
+
+  public async getPaymentProof(): Promise<any> {
+    if (this.balance?.balance || this.balance?.balance === '0') {
+      return this.requestLogic.getPaymentProof(this.requestId, this.balance?.balance);
+    }
+    return null;
   }
 
   /**
@@ -804,5 +816,20 @@ export default class Request {
    */
   public disablePaymentDetection(): void {
     this.skipPaymentDetection = true;
+  }
+
+  public async getSelectDisclosureProof(indexToDisclose: any[]): Promise<any> {
+    if (this.confirmationErrorOccurredAtCreation) {
+      throw Error('request confirmation failed');
+    }
+    const requestData = deepCopy(this.requestData);
+    const merkleproofs = await this.requestLogic.getSelectDisclosureProof(
+      requestData!,
+      indexToDisclose,
+    );
+    return {
+      requestIdZK: this.requestData?.requestIdCircom,
+      merkleproofs,
+    };
   }
 }

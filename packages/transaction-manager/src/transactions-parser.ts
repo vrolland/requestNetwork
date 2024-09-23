@@ -106,7 +106,11 @@ export default class TransactionsParser {
       return {
         channelKey,
         encryptionMethod,
-        transaction: new EncryptedTransaction(persistedTransaction.encryptedData, channelKey),
+        transaction: new EncryptedTransaction(
+          persistedTransaction.encryptedData,
+          channelKey,
+          persistedTransaction.proof,
+        ),
       };
     }
 

@@ -1,7 +1,7 @@
 import { IdentityTypes, RequestLogicTypes } from '@requestnetwork/types';
 
 import Role from './role';
-import { isValidAmount } from '@requestnetwork/utils';
+import { isValidAmount, identityHasError } from '@requestnetwork/utils';
 
 /**
  * Module to manage a request
@@ -54,15 +54,19 @@ function checkRequest(request: RequestLogicTypes.IRequest): boolean {
   if (!request.payee && !request.payer) {
     throw Error('request.payee and request.payer are missing');
   }
-  if (request.creator.type !== IdentityTypes.TYPE.ETHEREUM_ADDRESS) {
-    throw Error('request.creator.type not supported');
+
+  if (request.creator && identityHasError(request.creator)) {
+    throw new Error(`payee: ${identityHasError(request.creator)}̀`);
   }
-  if (request.payee && request.payee.type !== IdentityTypes.TYPE.ETHEREUM_ADDRESS) {
-    throw Error('request.payee.type not supported');
+
+  if (request.payee && identityHasError(request.payee)) {
+    throw new Error(`payee: ${identityHasError(request.payee)}̀`);
   }
-  if (request.payer && request.payer.type !== IdentityTypes.TYPE.ETHEREUM_ADDRESS) {
-    throw Error('request.payer.type not supported');
+
+  if (request.payer && identityHasError(request.payer)) {
+    throw new Error(`payer: ${identityHasError(request.payer)}̀`);
   }
+
   if (!isValidAmount(request.expectedAmount)) {
     throw Error('expectedAmount must be a positive integer');
   }
