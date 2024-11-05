@@ -583,7 +583,7 @@ export default class RequestNetwork {
     const proof = proofsJSON[name].proof;
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const vKey = require(`/home/vincent/Documents/request/vrolland-requestNetwork/packages/request-logic/src/circom/${name}_verification_key.json`);
+    const vKey = require(`/home/vincent/Documents/request/requestnetwork/packages/request-logic/src/circom/${name}_verification_key.json`);
 
     // const vKey = JSON.parse(fs.readFileSync("build/requestErc20FeeProxy_verification_key.json"));
     // const vKey = JSON.parse(vKeyJSON);

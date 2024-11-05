@@ -263,8 +263,8 @@ async function generateProof(
   const { proof, publicSignals } = await snarkjs.groth16.fullProve(
     inputs,
     // TODO relative path
-    `/home/vincent/Documents/request/vrolland-requestNetwork/packages/request-logic/src/circom/${name}.wasm`,
-    `/home/vincent/Documents/request/vrolland-requestNetwork/packages/request-logic/src/circom/${name}_final.zkey`,
+    `/home/vincent/Documents/request/requestnetwork/packages/request-logic/src/circom/${name}.wasm`,
+    `/home/vincent/Documents/request/requestnetwork/packages/request-logic/src/circom/${name}_final.zkey`,
   );
 
   return { proof, publicSignals };
