@@ -59,6 +59,7 @@ describe('ERC20 Address Based detection test-suite', () => {
       },
       extensionsData: [],
       requestId: '0x1',
+      requestIdCircom: '',
       state: 'Good',
       timestamp: 0,
       version: '0.2',

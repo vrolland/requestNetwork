@@ -41,6 +41,7 @@ const createMockRequest = ({
   },
   extensionsData: [],
   requestId,
+  requestIdCircom: '',
   state: RequestLogicTypes.STATE.CREATED,
   timestamp: 0,
   version: '0.2',
