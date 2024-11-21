@@ -164,6 +164,7 @@ export default class RequestNetwork {
     encryptionParams: EncryptionTypes.IEncryptionParameters[],
     options?: Types.ICreateRequestOptions,
   ): Promise<Request> {
+    console.log('########## _createEncryptedRequest ##################################');
     const { requestParameters, topics, paymentNetwork } =
       await this.prepareRequestParameters(parameters);
 
