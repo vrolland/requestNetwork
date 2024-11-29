@@ -40,8 +40,11 @@
     "test:watch": "yarn test --watch"
   },
   "dependencies": {
+    "@iden3/js-crypto": "^1.1.0",
     "@requestnetwork/types": "0.45.0",
     "@toruslabs/eccrypto": "4.0.0",
+    "@zk-kit/eddsa-poseidon": "^1.0.2",
+    "@zk-kit/utils": "^1.2.0",
     "ethers": "5.7.2",
     "secp256k1": "4.0.4",
     "tslib": "2.5.0"

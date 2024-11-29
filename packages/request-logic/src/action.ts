@@ -4,6 +4,8 @@ import * as Semver from 'semver';
 import Role from './role';
 import Version from './version';
 import { normalizeKeccak256Hash, recoverSigner } from '@requestnetwork/utils';
+import { computeRequestIdCircom } from './circom/zkproof';
+import { bigIntToHexadecimal } from '@zk-kit/utils';
 
 /**
  * Function to manage Request logic action (object that will be interpreted to create or modify a request)
@@ -11,6 +13,7 @@ import { normalizeKeccak256Hash, recoverSigner } from '@requestnetwork/utils';
 export default {
   createAction,
   getRequestId,
+  getRequestIdCircom,
   getRoleInAction,
   getRoleInUnsignedAction,
   getSignerIdentityFromAction,
@@ -91,6 +94,16 @@ function getRequestId(action: RequestLogicTypes.IAction): RequestLogicTypes.Requ
     return getActionHash(action);
   }
   return action.data.parameters.requestId;
+}
+
+function getRequestIdCircom(action: RequestLogicTypes.IAction): RequestLogicTypes.RequestIdCircom {
+  // if a creation we need to compute the hash
+  if (action.data.name === RequestLogicTypes.ACTION_NAME.CREATE) {
+    const idBuff = computeRequestIdCircom(action.data.parameters);
+    return bigIntToHexadecimal(BigInt(idBuff));
+    // return idBuff;
+  }
+  return action.data.parameters.requestIdCircom;
 }
 
 /**

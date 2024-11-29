@@ -24,6 +24,8 @@ import Request from './request';
 import localUtils from './utils';
 import { NoPersistHttpDataAccess } from '../no-persist-http-data-access';
 
+import * as snarkjs from 'snarkjs';
+
 /**
  * Entry point of the request-client.js library. Create requests, get requests, manipulate requests.
  */
@@ -162,6 +164,7 @@ export default class RequestNetwork {
     encryptionParams: EncryptionTypes.IEncryptionParameters[],
     options?: Types.ICreateRequestOptions,
   ): Promise<Request> {
+    console.log('########## _createEncryptedRequest ##################################');
     const { requestParameters, topics, paymentNetwork } =
       await this.prepareRequestParameters(parameters);
 
@@ -541,6 +544,7 @@ export default class RequestNetwork {
     return {
       ...requestData.parameters,
       requestId,
+      requestIdCircom: requestData.requestIdCircom,
       meta: null,
       balance: null,
       currency: requestData.parameters.currency.type,
@@ -554,6 +558,32 @@ export default class RequestNetwork {
       )?.parameters.content,
       pending: null,
       extensions: newExtensions,
+      extensionsData: requestData.parameters.extensionsData,
+      timestamp: requestData.parameters.timestamp,
+      version: requestData.parameters.version,
+      creator: requestData.parameters.creator,
+      state: requestData.parameters.state,
+      events: requestData.parameters.events,
+      proofs: [],
     };
+  }
+
+  public async checkSelectDisclosureProof(disclosureProof: any): Promise<boolean> {
+    return await this.requestLogic.checkSelectDisclosureProof(disclosureProof.merkleproofs);
+  }
+
+  public async verifyProof(name: string, proofsJSON: any): Promise<boolean> {
+    const publicSignals = proofsJSON[name].publicSignals;
+    const proof = proofsJSON[name].proof;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const vKey = require(
+      `/home/vincent/Documents/request/vrolland/requestNetwork/packages/request-logic/src/circom/${name}_verification_key.json`,
+    );
+
+    // const vKey = JSON.parse(fs.readFileSync("build/requestErc20FeeProxy_verification_key.json"));
+    // const vKey = JSON.parse(vKeyJSON);
+
+    return snarkjs.groth16.verify(vKey, publicSignals, proof);
   }
 }

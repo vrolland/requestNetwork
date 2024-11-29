@@ -6,8 +6,8 @@ import {
   ecEncrypt,
   encryptWithAes256cbc,
   encryptWithAes256gcm,
-  getAddressFromPublicKey,
 } from './index';
+import { getAddressFromPublicKey } from './crypto/ec-utils';
 
 /**
  * Functions to manage encryption
