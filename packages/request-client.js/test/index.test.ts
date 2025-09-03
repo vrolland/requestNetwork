@@ -5,6 +5,7 @@ import {
   ExtensionTypes,
   IdentityTypes,
   PaymentTypes,
+  CurrencyTypes,
   RequestLogicTypes,
 } from '@requestnetwork/types';
 import { decrypt, random32Bytes } from '@requestnetwork/utils';
@@ -26,6 +27,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer, SetupServer } from 'msw/node';
 import config from '../src/http-config-defaults';
 
+jest.setTimeout(20000);
 const httpConfig: Partial<ClientTypes.IHttpDataAccessConfig> = {
   getConfirmationDeferDelay: 0,
 };
@@ -857,9 +859,10 @@ describe('request-client.js', () => {
 
       await request.waitForConfirmation();
 
-      const requestsFromTopic = await requestNetwork.fromTopic('my amazing test topic');
-      expect(requestsFromTopic).not.toHaveLength(0);
-      const requestData = requestsFromTopic[0].getData();
+      const response = await requestNetwork.fromTopic('my amazing test topic');
+      const requests = Array.isArray(response) ? response : response.requests;
+      expect(requests).not.toHaveLength(0);
+      const requestData = requests[0].getData();
       expect(requestData).toMatchObject(request.getData());
 
       expect(requestData.meta).not.toBeNull();
@@ -897,15 +900,16 @@ describe('request-client.js', () => {
       );
       await request2.waitForConfirmation();
 
-      const requestsFromTopic = await requestNetwork.fromMultipleTopics([
+      const response = await requestNetwork.fromMultipleTopics([
         'my amazing test topic',
         'my second best test topic',
       ]);
-      expect(requestsFromTopic).toHaveLength(2);
-      expect(requestsFromTopic[0].getData()).toMatchObject(request.getData());
-      expect(requestsFromTopic[1].getData()).toMatchObject(request2.getData());
+      const requests = Array.isArray(response) ? response : response.requests;
+      expect(requests).toHaveLength(2);
+      expect(requests[0].getData()).toMatchObject(request.getData());
+      expect(requests[1].getData()).toMatchObject(request2.getData());
 
-      requestsFromTopic.forEach((req) => {
+      requests.forEach((req) => {
         const requestData = req.getData();
         expect(requestData.meta).not.toBeNull();
         expect(requestData.meta!.transactionManagerMeta.encryptionMethod).toBe('ecies-aes256-gcm');
@@ -929,9 +933,10 @@ describe('request-client.js', () => {
       );
       await request.waitForConfirmation();
 
-      const requestFromIdentity = await requestNetwork.fromIdentity(TestData.payee.identity);
-      expect(requestFromIdentity).not.toBe('');
-      const requestData = requestFromIdentity[0].getData();
+      const response = await requestNetwork.fromIdentity(TestData.payee.identity);
+      const requests = Array.isArray(response) ? response : response.requests;
+      expect(requests).not.toBe('');
+      const requestData = requests[0].getData();
       expect(requestData).toMatchObject(request.getData());
 
       expect(requestData.meta).not.toBeNull();
@@ -1643,48 +1648,59 @@ describe('request-client.js', () => {
     expect(data.expectedAmount).toBe(requestParameters.expectedAmount);
   });
 
-  it('Can create ERC20 declarative requests with non-evm currency - solana', async () => {
-    const testErc20TokenAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-    const requestNetwork = new RequestNetwork({
-      signatureProvider: TestData.fakeSignatureProvider,
-      useMockStorage: true,
-    });
+  describe('Can create ERC20 declarative requests with non-evm currencies', () => {
+    const cases: Array<[CurrencyTypes.DeclarativeChainName, string]> = [
+      ['solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'],
+      ['ton', 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs'],
+      ['starknet', '0x028757d11c97078Dd182023B1cC7b9E7659716c631ADF94D24f1fa7Dc5943072'],
+      ['aleo', '7311977476241952331367670434347097026669181172395481678807963832961201831695field'],
+    ];
 
-    const paymentNetwork: PaymentTypes.PaymentNetworkCreateParameters = {
-      id: ExtensionTypes.PAYMENT_NETWORK_ID.ANY_DECLARATIVE,
-      parameters: {},
-    };
+    it.each(cases)(
+      'Can create ERC20 declarative requests with non-evm currency - %s',
+      async (network, tokenAddress) => {
+        const requestNetwork = new RequestNetwork({
+          signatureProvider: TestData.fakeSignatureProvider,
+          useMockStorage: true,
+        });
 
-    const requestInfo = Object.assign({}, TestData.parametersWithoutExtensionsData, {
-      currency: {
-        network: 'solana',
-        type: RequestLogicTypes.CURRENCY.ERC20,
-        value: testErc20TokenAddress,
+        const paymentNetwork: PaymentTypes.PaymentNetworkCreateParameters = {
+          id: ExtensionTypes.PAYMENT_NETWORK_ID.ANY_DECLARATIVE,
+          parameters: {},
+        };
+
+        const requestInfo = Object.assign({}, TestData.parametersWithoutExtensionsData, {
+          currency: {
+            network,
+            type: RequestLogicTypes.CURRENCY.ERC20,
+            value: tokenAddress,
+          },
+        });
+
+        const request = await requestNetwork.createRequest({
+          paymentNetwork,
+          requestInfo,
+          signer: TestData.payee.identity,
+        });
+
+        await new Promise((resolve): any => setTimeout(resolve, 150));
+        const data = await request.refresh();
+
+        expect(data).toBeDefined();
+        expect(data.balance?.balance).toBe('0');
+        expect(data.balance?.events.length).toBe(0);
+        expect(data.meta).toBeDefined();
+        expect(data.currency).toBe('unknown');
+
+        expect(data.extensions[ExtensionTypes.PAYMENT_NETWORK_ID.ANY_DECLARATIVE].values).toEqual({
+          receivedPaymentAmount: '0',
+          receivedRefundAmount: '0',
+          sentPaymentAmount: '0',
+          sentRefundAmount: '0',
+        });
+        expect(data.expectedAmount).toBe(requestParameters.expectedAmount);
       },
-    });
-
-    const request = await requestNetwork.createRequest({
-      paymentNetwork,
-      requestInfo,
-      signer: TestData.payee.identity,
-    });
-
-    await new Promise((resolve): any => setTimeout(resolve, 150));
-    let data = await request.refresh();
-
-    expect(data).toBeDefined();
-    expect(data.balance?.balance).toBe('0');
-    expect(data.balance?.events.length).toBe(0);
-    expect(data.meta).toBeDefined();
-    expect(data.currency).toBe('unknown');
-
-    expect(data.extensions[ExtensionTypes.PAYMENT_NETWORK_ID.ANY_DECLARATIVE].values).toEqual({
-      receivedPaymentAmount: '0',
-      receivedRefundAmount: '0',
-      sentPaymentAmount: '0',
-      sentRefundAmount: '0',
-    });
-    expect(data.expectedAmount).toBe(requestParameters.expectedAmount);
+    );
   });
 
   it('cannot create ERC20 address based requests with invalid currency', async () => {

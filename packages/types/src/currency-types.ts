@@ -26,6 +26,7 @@ export type EvmChainName =
   | 'private'
   | 'rinkeby' // FIXME: Rinkeby is deprecated
   | 'sepolia'
+  | 'sonic'
   | 'ronin'
   | 'sokol'
   | 'tombchain'
@@ -41,7 +42,7 @@ export type BtcChainName = 'mainnet' | 'testnet';
 /**
  * List of supported Declarative chains
  */
-export type DeclarativeChainName = 'tron' | 'solana';
+export type DeclarativeChainName = 'tron' | 'solana' | 'ton' | 'starknet' | 'aleo';
 
 /**
  * List of supported NEAR chains

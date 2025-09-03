@@ -3,10 +3,7 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 
 export default class GetTransactionsByChannelIdHandler {
-  constructor(
-    private logger: LogTypes.ILogger,
-    private dataAccess: DataAccessTypes.IDataRead,
-  ) {
+  constructor(private logger: LogTypes.ILogger, private dataAccess: DataAccessTypes.IDataRead) {
     this.handler = this.handler.bind(this);
   }
 
@@ -39,7 +36,6 @@ export default class GetTransactionsByChannelIdHandler {
       serverResponse.status(StatusCodes.OK).send(transactions);
     } catch (e) {
       this.logger.error(`getTransactionsByChannelId error: ${e}`);
-
       serverResponse.status(StatusCodes.INTERNAL_SERVER_ERROR).send(e);
     }
   }

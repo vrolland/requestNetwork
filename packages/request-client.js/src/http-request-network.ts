@@ -2,17 +2,17 @@ import { CurrencyManager } from '@requestnetwork/currency';
 import {
   ClientTypes,
   CurrencyTypes,
+  CipherProviderTypes,
   DataAccessTypes,
   DecryptionProviderTypes,
   SignatureProviderTypes,
 } from '@requestnetwork/types';
 import { PaymentNetworkOptions } from '@requestnetwork/payment-detection';
 import RequestNetwork from './api/request-network';
-import HttpDataAccess, { NodeConnectionConfig } from './http-data-access';
+import HttpDataAccess from './http-data-access';
 import { MockDataAccess } from '@requestnetwork/data-access';
 import { MockStorage } from './mock-storage';
-import { NoPersistHttpDataAccess } from './no-persist-http-data-access';
-
+import { NodeConnectionConfig } from './http-data-access-config';
 /**
  * Exposes RequestNetwork module configured to use http-data-access.
  */
@@ -31,6 +31,7 @@ export default class HttpRequestNetwork extends RequestNetwork {
   constructor(
     {
       decryptionProvider,
+      cipherProvider,
       httpConfig,
       nodeConnectionConfig,
       signatureProvider,
@@ -40,6 +41,7 @@ export default class HttpRequestNetwork extends RequestNetwork {
       skipPersistence,
     }: {
       decryptionProvider?: DecryptionProviderTypes.IDecryptionProvider;
+      cipherProvider?: CipherProviderTypes.ICipherProvider;
       httpConfig?: Partial<ClientTypes.IHttpDataAccessConfig>;
       nodeConnectionConfig?: Partial<NodeConnectionConfig>;
       signatureProvider?: SignatureProviderTypes.ISignatureProvider;
@@ -55,17 +57,19 @@ export default class HttpRequestNetwork extends RequestNetwork {
   ) {
     const dataAccess: DataAccessTypes.IDataAccess = useMockStorage
       ? new MockDataAccess(new MockStorage())
-      : skipPersistence
-      ? new NoPersistHttpDataAccess({
-          httpConfig,
-          nodeConnectionConfig,
-        })
-      : new HttpDataAccess({ httpConfig, nodeConnectionConfig });
+      : new HttpDataAccess({ httpConfig, nodeConnectionConfig, skipPersistence });
 
     if (!currencyManager) {
       currencyManager = CurrencyManager.getDefault();
     }
 
-    super({ dataAccess, signatureProvider, decryptionProvider, currencyManager, paymentOptions });
+    super({
+      dataAccess,
+      signatureProvider,
+      decryptionProvider,
+      cipherProvider,
+      currencyManager,
+      paymentOptions,
+    });
   }
 }

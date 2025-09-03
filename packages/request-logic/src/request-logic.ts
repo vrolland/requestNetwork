@@ -346,6 +346,8 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
   public async getRequestsByTopic(
     topic: string,
     updatedBetween?: RequestLogicTypes.ITimestampBoundaries,
+    page?: number,
+    pageSize?: number,
   ): Promise<RequestLogicTypes.IReturnGetRequestsByTopic> {
     // hash all the topics
     const hashedTopic = MultiFormat.serialize(normalizeKeccak256Hash(topic));
@@ -353,6 +355,8 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     const getChannelsResult = await this.transactionManager.getChannelsByTopic(
       hashedTopic,
       updatedBetween,
+      page,
+      pageSize,
     );
     return this.computeMultipleRequestFromChannels(getChannelsResult);
   }
@@ -365,6 +369,8 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
   public async getRequestsByMultipleTopics(
     topics: string[],
     updatedBetween?: RequestLogicTypes.ITimestampBoundaries,
+    page?: number,
+    pageSize?: number,
   ): Promise<RequestLogicTypes.IReturnGetRequestsByTopic> {
     // hash all the topics
     const hashedTopics = topics.map((topic) =>
@@ -374,6 +380,8 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     const getChannelsResult = await this.transactionManager.getChannelsByMultipleTopics(
       hashedTopics,
       updatedBetween,
+      page,
+      pageSize,
     );
     return this.computeMultipleRequestFromChannels(getChannelsResult);
   }
@@ -503,26 +511,23 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     // second parameter is null, because the first action must be a creation (no state expected)
     const confirmedRequestState = transactions
       .filter((action) => action.state === TransactionTypes.TransactionState.CONFIRMED)
-      .reduce(
-        (requestState, actionConfirmed) => {
-          try {
-            return RequestLogicCore.applyActionToRequest(
-              requestState,
-              actionConfirmed.action,
-              actionConfirmed.timestamp,
-              this.advancedLogic,
-            );
-          } catch (e) {
-            // if an error occurs while applying we ignore the action
-            ignoredTransactionsByApplication.push({
-              reason: e.message,
-              transaction: actionConfirmed,
-            });
-            return requestState;
-          }
-        },
-        null as RequestLogicTypes.IRequest | null,
-      );
+      .reduce((requestState, actionConfirmed) => {
+        try {
+          return RequestLogicCore.applyActionToRequest(
+            requestState,
+            actionConfirmed.action,
+            actionConfirmed.timestamp,
+            this.advancedLogic,
+          );
+        } catch (e) {
+          // if an error occurs while applying we ignore the action
+          ignoredTransactionsByApplication.push({
+            reason: e.message,
+            transaction: actionConfirmed,
+          });
+          return requestState;
+        }
+      }, null as RequestLogicTypes.IRequest | null);
 
     const pendingRequestState = transactions
       .filter((action) => action.state === TransactionTypes.TransactionState.PENDING)
@@ -621,6 +626,7 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
           pending,
           request: confirmedRequestState,
           transactionManagerMeta: transactionManagerMeta[channelId],
+          pagination: transactionManagerMeta.pagination,
         };
       },
     );
@@ -635,7 +641,6 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
             pending: requestAndMeta.pending,
             request: requestAndMeta.request,
           });
-
           // workaround to quiet the error "finalResult.meta.ignoredTransactions can be undefined" (but defined in the initialization value of the accumulator)
           (finalResult.meta.ignoredTransactions || []).push(requestAndMeta.ignoredTransactions);
 
@@ -643,6 +648,12 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
           (finalResult.meta.transactionManagerMeta || []).push(
             requestAndMeta.transactionManagerMeta,
           );
+
+          // add the pagination
+          finalResult.meta.pagination = {
+            ...finalResult.meta.pagination,
+            ...requestAndMeta.pagination,
+          };
         }
 
         return finalResult;
@@ -669,8 +680,9 @@ export default class RequestLogic implements RequestLogicTypes.IRequestLogic {
     requestId: RequestLogicTypes.RequestId,
     action: RequestLogicTypes.IAction,
   ): Promise<void> {
-    const { confirmedRequestState, pendingRequestState } =
-      await this.computeRequestFromRequestId(requestId);
+    const { confirmedRequestState, pendingRequestState } = await this.computeRequestFromRequestId(
+      requestId,
+    );
 
     try {
       // Check if the action doesn't fail with the request state

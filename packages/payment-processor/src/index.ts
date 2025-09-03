@@ -3,6 +3,7 @@ export * from './payment/btc-address-based';
 export * from './payment/erc20';
 export * from './payment/erc20-proxy';
 export * from './payment/erc20-fee-proxy';
+export * from './payment/erc-20-private-payment-hinkal';
 export * from './payment/erc777-stream';
 export * from './payment/erc777-utils';
 export * from './payment/eth-input-data';
@@ -28,6 +29,7 @@ export * as Escrow from './payment/erc20-escrow-payment';
 export * from './payment/prepared-transaction';
 export * from './payment/utils-near';
 export * from './payment/single-request-forwarder';
+export * from './payment/erc20-recurring-payment-proxy';
 
 import * as utils from './payment/utils';
 

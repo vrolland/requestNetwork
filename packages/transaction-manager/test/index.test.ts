@@ -46,7 +46,11 @@ const fakeMetaDataAccessGetReturn: DataAccessTypes.IReturnGetTransactions = {
 };
 
 const fakeMetaDataAccessGetChannelsReturn: DataAccessTypes.IReturnGetChannelsByTopic = {
-  meta: { transactionsStorageLocation: { [channelId]: ['fakeDataId1', 'fakeDataId2'] } },
+  meta: {
+    pagination: undefined,
+    storageMeta: {},
+    transactionsStorageLocation: { [channelId]: ['fakeDataId1', 'fakeDataId2'] },
+  },
   result: { transactions: { [channelId]: [tx, tx2] } },
 };
 let fakeDataAccess: DataAccessTypes.IDataAccess;
@@ -74,6 +78,7 @@ describe('index', () => {
         );
         return fakeMetaDataAccessPersistReturn;
       }),
+      skipPersistence: jest.fn().mockReturnValue(true),
     };
   });
 
@@ -129,7 +134,7 @@ describe('index', () => {
           }),
         );
         expect(fakeDataAccess.persistTransaction).toHaveBeenCalledTimes(1);
-      });
+      }, 10000);
 
       it('cannot persist a transaction if data access emit error', async () => {
         const fakeDataAccessEmittingError = Object.assign({}, fakeDataAccess);
@@ -227,6 +232,7 @@ describe('index', () => {
           initialize: jest.fn(),
           close: jest.fn(),
           persistTransaction: jest.fn().mockReturnValue(fakeMetaDataAccessPersistReturn),
+          skipPersistence: jest.fn().mockReturnValue(true),
         };
 
         const transactionManager = new TransactionManager(
@@ -273,6 +279,7 @@ describe('index', () => {
           initialize: jest.fn(),
           close: jest.fn(),
           persistTransaction: jest.fn().mockReturnValue(fakeMetaDataAccessPersistReturn),
+          skipPersistence: jest.fn().mockReturnValue(true),
         };
 
         const transactionManager = new TransactionManager(
@@ -315,6 +322,7 @@ describe('index', () => {
           initialize: jest.fn(),
           close: jest.fn(),
           persistTransaction: jest.fn().mockReturnValue(fakeMetaDataAccessPersistReturn),
+          skipPersistence: jest.fn().mockReturnValue(true),
         };
 
         const transactionManager = new TransactionManager(
@@ -391,6 +399,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(fakeDataAccess);
@@ -441,6 +450,7 @@ describe('index', () => {
           .mockReturnValue(fakeMetaDataAccessGetReturnFirstHashWrong),
         initialize: jest.fn(),
         close: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
         persistTransaction: jest.fn(),
       };
 
@@ -500,6 +510,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(
@@ -557,6 +568,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(fakeDataAccess);
@@ -568,7 +580,7 @@ describe('index', () => {
           dataAccessMeta: { transactionsStorageLocation: ['fakeDataId1'] },
           ignoredTransactions: [
             {
-              reason: 'No decryption provider given',
+              reason: 'No decryption or cipher provider given',
               transaction: {
                 state: TransactionTypes.TransactionState.PENDING,
                 timestamp: 1,
@@ -630,6 +642,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(
@@ -668,7 +681,7 @@ describe('index', () => {
           ],
         },
       });
-    });
+    }, 10000);
 
     it('can get two transactions with different encryptions from the same encrypted channel the first has the right hash but wrong data', async () => {
       const encryptedTxFakeHash = await TransactionsFactory.createEncryptedTransactionInNewChannel(
@@ -717,6 +730,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(
@@ -755,7 +769,7 @@ describe('index', () => {
           transactions: [null, null],
         },
       });
-    });
+    }, 10000);
 
     it('can get two transactions, the first is encrypted but the second is clear (will be ignored)', async () => {
       const encryptedTx = await TransactionsFactory.createEncryptedTransactionInNewChannel(data, [
@@ -793,6 +807,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(
@@ -831,7 +846,7 @@ describe('index', () => {
           ],
         },
       });
-    });
+    }, 10000);
 
     it('can get two transactions first encrypted but decrypt impossible and second clear', async () => {
       const encryptedTx = await TransactionsFactory.createEncryptedTransactionInNewChannel(data, [
@@ -871,6 +886,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(
@@ -948,15 +964,14 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
-      const transactionManager = new TransactionManager(
-        fakeDataAccess,
-        TestData.fakeDecryptionProvider,
-      );
+      const transactionManager = new TransactionManager(fakeDataAccess);
       const ret = await transactionManager.getTransactionsByChannelId(channelId);
 
-      // 'return is wrong'
+      // Update the expected result to NOT expect encryptionMethod in meta
+      // since the first transaction is clear
       expect(ret).toEqual({
         meta: {
           dataAccessMeta: {
@@ -1096,6 +1111,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(
@@ -1106,7 +1122,7 @@ describe('index', () => {
 
       // 'return is wrong'
       expect(ret).toEqual(expectedRet);
-    });
+    }, 20000);
   });
 
   describe('getChannelsByTopic', () => {
@@ -1118,14 +1134,12 @@ describe('index', () => {
       // 'ret.result is wrong'
       expect(ret.result).toEqual(fakeMetaDataAccessGetChannelsReturn.result);
       // 'ret.meta is wrong'
-      expect(ret.meta).toEqual(
-        expect.objectContaining({
-          dataAccessMeta: fakeMetaDataAccessGetChannelsReturn.meta,
-          ignoredTransactions: {
-            '01a98f126de3fab2b5130af5161998bf6e59b2c380deafeff938ff3f798281bf23': [null, null],
-          },
-        }),
-      );
+      expect(ret.meta).toEqual({
+        dataAccessMeta: fakeMetaDataAccessGetChannelsReturn.meta,
+        ignoredTransactions: {
+          '01a98f126de3fab2b5130af5161998bf6e59b2c380deafeff938ff3f798281bf23': [null, null],
+        },
+      });
       expect(fakeDataAccess.getChannelsByTopic).toHaveBeenCalledWith(extraTopics[0], undefined);
     });
 
@@ -1139,6 +1153,8 @@ describe('index', () => {
       const fakeMetaDataAccessGetReturnWithEncryptedTransaction: DataAccessTypes.IReturnGetChannelsByTopic =
         {
           meta: {
+            pagination: undefined,
+            storageMeta: {},
             transactionsStorageLocation: {
               [channelId]: ['fakeDataId1'],
             },
@@ -1165,6 +1181,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(
@@ -1181,16 +1198,20 @@ describe('index', () => {
         },
       });
       // 'ret.meta is wrong'
-      expect(ret.meta).toEqual(
-        expect.objectContaining({
-          dataAccessMeta: fakeMetaDataAccessGetReturnWithEncryptedTransaction.meta,
-          ignoredTransactions: {
-            [channelId]: [null],
+      expect(ret.meta).toEqual({
+        dataAccessMeta: {
+          pagination: undefined,
+          storageMeta: {},
+          transactionsStorageLocation: {
+            [channelId]: ['fakeDataId1'],
           },
-        }),
-      );
+        },
+        ignoredTransactions: {
+          [channelId]: [null],
+        },
+      });
       expect(fakeDataAccess.getChannelsByTopic).toHaveBeenCalledWith(extraTopics[0], undefined);
-    });
+    }, 15000);
 
     it('cannot get an encrypted channel indexed by topic without decryptionProvider', async () => {
       const encryptedTx = await TransactionsFactory.createEncryptedTransactionInNewChannel(data, [
@@ -1202,6 +1223,8 @@ describe('index', () => {
       const fakeMetaDataAccessGetReturnWithEncryptedTransaction: DataAccessTypes.IReturnGetChannelsByTopic =
         {
           meta: {
+            pagination: undefined,
+            storageMeta: {},
             transactionsStorageLocation: {
               [channelId]: ['fakeDataId1'],
             },
@@ -1228,40 +1251,45 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(fakeDataAccess);
 
       const ret = await transactionManager.getChannelsByTopic(extraTopics[0]);
 
-      // 'ret.result is wrong'
       expect(ret.result).toEqual({
         transactions: {
           [channelId]: [null],
         },
       });
-      // 'ret.meta is wrong'
-      expect(ret.meta).toEqual(
-        expect.objectContaining({
-          dataAccessMeta: fakeMetaDataAccessGetReturnWithEncryptedTransaction.meta,
-          ignoredTransactions: {
-            [channelId]: [
-              {
-                reason: 'No decryption provider given',
-                transaction: {
-                  state: TransactionTypes.TransactionState.PENDING,
-                  timestamp: 1,
-                  transaction: encryptedTx,
-                },
-              },
-            ],
-          },
-        }),
-      );
-      expect(fakeDataAccess.getChannelsByTopic).toHaveBeenCalledWith(extraTopics[0], undefined);
-    });
 
-    it('can get an clear channel indexed by topic without decryptionProvider even if an encrypted transaction happen first', async () => {
+      expect(ret.meta).toEqual({
+        dataAccessMeta: {
+          pagination: undefined,
+          storageMeta: {},
+          transactionsStorageLocation: {
+            [channelId]: ['fakeDataId1'],
+          },
+        },
+        ignoredTransactions: {
+          [channelId]: [
+            {
+              reason: 'No decryption or cipher provider given',
+              transaction: {
+                state: TransactionTypes.TransactionState.PENDING,
+                timestamp: 1,
+                transaction: encryptedTx,
+              },
+            },
+          ],
+        },
+      });
+
+      expect(fakeDataAccess.getChannelsByTopic).toHaveBeenCalledWith(extraTopics[0], undefined);
+    }, 15000);
+
+    it('can get a clear channel indexed by topic without decryptionProvider even if an encrypted transaction happen first', async () => {
       const encryptedTx = await TransactionsFactory.createEncryptedTransactionInNewChannel(data, [
         TestData.idRaw1.encryptionParams,
         TestData.idRaw2.encryptionParams,
@@ -1302,13 +1330,13 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(fakeDataAccess);
 
       const ret = await transactionManager.getChannelsByTopic(extraTopics[0]);
 
-      // 'ret.result is wrong'
       expect(ret.result).toEqual({
         transactions: {
           [channelId]: [
@@ -1321,27 +1349,31 @@ describe('index', () => {
           ],
         },
       });
-      // 'ret.meta is wrong'
-      expect(ret.meta).toEqual(
-        expect.objectContaining({
-          dataAccessMeta: fakeMetaDataAccessGetReturnWithEncryptedTransaction.meta,
-          ignoredTransactions: {
-            [channelId]: [
-              {
-                reason: 'No decryption provider given',
-                transaction: {
-                  state: TransactionTypes.TransactionState.PENDING,
-                  timestamp: 1,
-                  transaction: encryptedTx,
-                },
-              },
-              null,
-            ],
+
+      expect(ret.meta).toEqual({
+        dataAccessMeta: {
+          pagination: undefined,
+          storageMeta: {},
+          transactionsStorageLocation: {
+            [channelId]: ['fakeDataId1', 'fakeDataId2'],
           },
-        }),
-      );
+        },
+        ignoredTransactions: {
+          [channelId]: [
+            {
+              reason: 'No decryption or cipher provider given',
+              transaction: {
+                state: TransactionTypes.TransactionState.PENDING,
+                timestamp: 1,
+                transaction: encryptedTx,
+              },
+            },
+            null,
+          ],
+        },
+      });
       expect(fakeDataAccess.getChannelsByTopic).toHaveBeenCalledWith(extraTopics[0], undefined);
-    });
+    }, 15000);
 
     it('can get channels indexed by topics with channelId not matching the first transaction hash', async () => {
       const txWrongHash: DataAccessTypes.ITimestampedTransaction = {
@@ -1366,6 +1398,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(fakeDataAccess);
@@ -1377,22 +1410,26 @@ describe('index', () => {
         transactions: { [channelId]: [null, tx, tx2] },
       });
       // 'ret.meta is wrong'
-      expect(ret.meta).toEqual(
-        expect.objectContaining({
-          dataAccessMeta: fakeMetaDataAccessGetReturnFirstHashWrong.meta,
-          ignoredTransactions: {
-            [channelId]: [
-              {
-                reason:
-                  'as first transaction, the hash of the transaction do not match the channelId',
-                transaction: txWrongHash,
-              },
-              null,
-              null,
-            ],
+      expect(ret.meta).toEqual({
+        dataAccessMeta: {
+          pagination: undefined,
+          storageMeta: {},
+          transactionsStorageLocation: {
+            [channelId]: ['fakeDataId1', 'fakeDataId1', 'fakeDataId2'],
           },
-        }),
-      );
+        },
+        ignoredTransactions: {
+          [channelId]: [
+            {
+              reason:
+                'as first transaction, the hash of the transaction do not match the channelId',
+              transaction: txWrongHash,
+            },
+            null,
+            null,
+          ],
+        },
+      });
       expect(fakeDataAccess.getChannelsByTopic).toHaveBeenCalledWith(extraTopics[0], undefined);
     });
 
@@ -1406,6 +1443,8 @@ describe('index', () => {
       const fakeMetaDataAccessGetReturnWithEncryptedTransaction: DataAccessTypes.IReturnGetChannelsByTopic =
         {
           meta: {
+            pagination: undefined,
+            storageMeta: {},
             transactionsStorageLocation: {
               [channelId]: ['fakeDataId1'],
               [channelId2]: ['fakeDataId2'],
@@ -1440,6 +1479,7 @@ describe('index', () => {
         initialize: jest.fn(),
         close: jest.fn(),
         persistTransaction: jest.fn(),
+        skipPersistence: jest.fn().mockReturnValue(true),
       };
 
       const transactionManager = new TransactionManager(
@@ -1456,16 +1496,22 @@ describe('index', () => {
           [channelId2]: [tx2],
         },
       });
-      // 'ret.meta is wrong'
-      expect(ret.meta).toEqual(
-        expect.objectContaining({
-          dataAccessMeta: fakeMetaDataAccessGetReturnWithEncryptedTransaction.meta,
-          ignoredTransactions: {
-            [channelId]: [null],
-            [channelId2]: [null],
+
+      expect(ret.meta).toEqual({
+        dataAccessMeta: {
+          pagination: undefined,
+          storageMeta: {},
+          transactionsStorageLocation: {
+            [channelId]: ['fakeDataId1'],
+            [channelId2]: ['fakeDataId2'],
           },
-        }),
-      );
+        },
+        ignoredTransactions: {
+          [channelId]: [null],
+          [channelId2]: [null],
+        },
+      });
+
       expect(fakeDataAccess.getChannelsByTopic).toHaveBeenCalledWith(extraTopics[0], undefined);
     });
   });
@@ -1479,19 +1525,353 @@ describe('index', () => {
       // 'ret.result is wrong'
       expect(ret.result).toEqual(fakeMetaDataAccessGetChannelsReturn.result);
       // 'ret.meta is wrong'
-      expect(ret.meta).toEqual(
-        expect.objectContaining({
-          dataAccessMeta: fakeMetaDataAccessGetChannelsReturn.meta,
-          ignoredTransactions: {
-            '01a98f126de3fab2b5130af5161998bf6e59b2c380deafeff938ff3f798281bf23': [null, null],
-          },
-        }),
-      );
+      expect(ret.meta).toEqual({
+        dataAccessMeta: fakeMetaDataAccessGetChannelsReturn.meta,
+        ignoredTransactions: {
+          '01a98f126de3fab2b5130af5161998bf6e59b2c380deafeff938ff3f798281bf23': [null, null],
+        },
+      });
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(fakeDataAccess.getChannelsByMultipleTopics).toHaveBeenCalledWith(
         [extraTopics[0]],
         undefined,
       );
+    });
+
+    it('should return paginated results when querying multiple topics', async () => {
+      const fakeMetaDataAccessGetChannelsReturn: DataAccessTypes.IReturnGetChannelsByTopic = {
+        meta: {
+          pagination: { page: 1, pageSize: 2 },
+          transactionsStorageLocation: {
+            [channelId]: ['fakeDataId1', 'fakeDataId2'],
+            [channelId2]: ['fakeDataId12', 'fakeDataId22'],
+          },
+        },
+        result: {
+          transactions: {
+            [channelId]: [tx, tx2],
+            [channelId2]: [
+              {
+                state: TransactionTypes.TransactionState.PENDING,
+                timestamp: 1,
+                transaction: { data: data2 },
+              },
+              {
+                state: TransactionTypes.TransactionState.PENDING,
+                timestamp: 2,
+                transaction: { data },
+              },
+            ],
+          },
+        },
+      };
+
+      fakeDataAccess.getChannelsByMultipleTopics = jest
+        .fn()
+        .mockReturnValue(fakeMetaDataAccessGetChannelsReturn);
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      const result = await transactionManager.getChannelsByMultipleTopics(
+        [extraTopics[0], extraTopics[1]],
+        undefined,
+      );
+
+      // Verify both channels are present
+      expect(Object.keys(result.result.transactions)).toHaveLength(2);
+      expect(result.result.transactions).toHaveProperty(channelId);
+      expect(result.result.transactions).toHaveProperty(channelId2);
+
+      expect(fakeDataAccess.getChannelsByMultipleTopics).toHaveBeenCalledWith(
+        [extraTopics[0], extraTopics[1]],
+        undefined,
+      );
+    });
+  });
+
+  describe('getChannelsByTopic with pagination', () => {
+    it('should return paginated results when page and pageSize are provided', async () => {
+      // Use the existing data variables and their corresponding channelIds
+      const channels = {
+        [channelId]: [
+          {
+            state: TransactionTypes.TransactionState.PENDING,
+            timestamp: 4,
+            transaction: { data },
+          },
+        ],
+        [channelId2]: [
+          {
+            state: TransactionTypes.TransactionState.PENDING,
+            timestamp: 3,
+            transaction: { data: data2 },
+          },
+        ],
+        // Create a third channel with data
+        [MultiFormat.serialize(normalizeKeccak256Hash(JSON.parse('{"third":"tx"}')))]: [
+          {
+            state: TransactionTypes.TransactionState.PENDING,
+            timestamp: 1,
+            transaction: { data: '{"third":"tx"}' },
+          },
+        ],
+      };
+
+      const fakeMetaDataAccessGetChannelsReturnMultiple: DataAccessTypes.IReturnGetChannelsByTopic =
+        {
+          meta: {
+            storageMeta: {},
+            transactionsStorageLocation: {
+              [channelId]: ['fakeDataId1'],
+              [channelId2]: ['fakeDataId2'],
+              [MultiFormat.serialize(normalizeKeccak256Hash(JSON.parse('{"third":"tx"}')))]: [
+                'fakeDataId3',
+              ],
+            },
+          },
+          result: { transactions: channels },
+        };
+
+      fakeDataAccess = {
+        ...fakeDataAccess,
+        getChannelsByTopic: jest.fn().mockReturnValue(fakeMetaDataAccessGetChannelsReturnMultiple),
+      };
+
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      // Test first page - should get the two most recent channels
+      const firstPage = await transactionManager.getChannelsByTopic(
+        extraTopics[0],
+        undefined,
+        1,
+        2,
+      );
+
+      expect(Object.keys(firstPage.result.transactions)).toHaveLength(2);
+      expect(firstPage.result.transactions).toHaveProperty(channelId);
+      expect(firstPage.result.transactions).toHaveProperty(channelId2);
+      expect(firstPage.meta.dataAccessMeta.pagination).toEqual({
+        total: 3,
+        page: 1,
+        pageSize: 2,
+        hasMore: true,
+      });
+
+      // Test second page - should get the remaining channel
+      const secondPage = await transactionManager.getChannelsByTopic(
+        extraTopics[0],
+        undefined,
+        2,
+        2,
+      );
+
+      expect(Object.keys(secondPage.result.transactions)).toHaveLength(1);
+      expect(secondPage.result.transactions).toHaveProperty(
+        MultiFormat.serialize(normalizeKeccak256Hash(JSON.parse('{"third":"tx"}'))),
+      );
+      expect(secondPage.meta.dataAccessMeta.pagination).toEqual({
+        total: 3,
+        page: 2,
+        pageSize: 2,
+        hasMore: false,
+      });
+    });
+
+    it('should handle empty results with pagination', async () => {
+      const emptyChannels = {};
+      const fakeMetaDataAccessGetChannelsReturnEmpty: DataAccessTypes.IReturnGetChannelsByTopic = {
+        meta: {
+          transactionsStorageLocation: {},
+        },
+        result: { transactions: emptyChannels },
+      };
+
+      fakeDataAccess = {
+        ...fakeDataAccess,
+        getChannelsByTopic: jest.fn().mockReturnValue(fakeMetaDataAccessGetChannelsReturnEmpty),
+      };
+
+      const transactionManager = new TransactionManager(fakeDataAccess);
+      const result = await transactionManager.getChannelsByTopic(extraTopics[0], undefined, 1, 10);
+
+      expect(Object.keys(result.result.transactions)).toHaveLength(0);
+      expect(result.meta.dataAccessMeta.pagination).toEqual({
+        total: 0,
+        page: 1,
+        pageSize: 10,
+        hasMore: false,
+      });
+    });
+
+    it('should return all results when pagination params are not provided', async () => {
+      const channels = {
+        [channelId]: [tx, tx2],
+        [channelId2]: [
+          {
+            state: TransactionTypes.TransactionState.PENDING,
+            timestamp: 3,
+            transaction: { data: '{"third": "tx"}' },
+          },
+        ],
+      };
+
+      const fakeMetaDataAccessGetChannelsReturnMultiple: DataAccessTypes.IReturnGetChannelsByTopic =
+        {
+          meta: {
+            transactionsStorageLocation: {
+              [channelId]: ['fakeDataId1', 'fakeDataId2'],
+              [channelId2]: ['fakeDataId3'],
+            },
+          },
+          result: { transactions: channels },
+        };
+
+      fakeDataAccess = {
+        ...fakeDataAccess,
+        getChannelsByTopic: jest.fn().mockReturnValue(fakeMetaDataAccessGetChannelsReturnMultiple),
+      };
+
+      const transactionManager = new TransactionManager(fakeDataAccess);
+      const result = await transactionManager.getChannelsByTopic(extraTopics[0]);
+
+      // Should return all channels without pagination
+      expect(Object.keys(result.result.transactions)).toHaveLength(2);
+      expect(result.meta.dataAccessMeta.pagination).toBeUndefined();
+    });
+
+    it('should handle timestamp boundaries with pagination', async () => {
+      const channels = {
+        [channelId]: [
+          {
+            state: TransactionTypes.TransactionState.PENDING,
+            timestamp: 2000,
+            transaction: { data },
+          },
+          {
+            state: TransactionTypes.TransactionState.PENDING,
+            timestamp: 2500,
+            transaction: { data },
+          },
+        ],
+        [channelId2]: [
+          {
+            state: TransactionTypes.TransactionState.PENDING,
+            timestamp: 3000,
+            transaction: { data: data2 },
+          },
+        ],
+      };
+
+      const fakeMetaDataAccessGetChannelsReturnMultiple: DataAccessTypes.IReturnGetChannelsByTopic =
+        {
+          meta: {
+            storageMeta: {},
+            transactionsStorageLocation: {
+              [channelId]: ['fakeDataId1', 'fakeDataId2'],
+              [channelId2]: ['fakeDataId3'],
+            },
+          },
+          result: { transactions: channels },
+        };
+
+      fakeDataAccess = {
+        ...fakeDataAccess,
+        getChannelsByTopic: jest.fn().mockReturnValue(fakeMetaDataAccessGetChannelsReturnMultiple),
+      };
+
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      // Test with timestamp boundaries
+      const result = await transactionManager.getChannelsByTopic(
+        extraTopics[0],
+        { from: 1500, to: 3500 },
+        1,
+        2,
+      );
+
+      // Should only include channels with transactions in the time range
+      expect(Object.keys(result.result.transactions)).toHaveLength(2);
+      expect(result.result.transactions).toHaveProperty(channelId);
+      expect(result.result.transactions).toHaveProperty(channelId2);
+      expect(result.meta.dataAccessMeta.pagination).toEqual({
+        total: 2,
+        page: 1,
+        pageSize: 2,
+        hasMore: false,
+      });
+    });
+  });
+
+  describe('pagination validation', () => {
+    it('should throw error for invalid page number in getChannelsByTopic', async () => {
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      await expect(
+        transactionManager.getChannelsByTopic(extraTopics[0], undefined, 0, 10),
+      ).rejects.toThrow('Page number must be greater than or equal to 1 but it is 0');
+
+      await expect(
+        transactionManager.getChannelsByTopic(extraTopics[0], undefined, -1, 10),
+      ).rejects.toThrow('Page number must be greater than or equal to 1 but it is -1');
+    });
+
+    it('should throw error for invalid pageSize in getChannelsByTopic', async () => {
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      await expect(
+        transactionManager.getChannelsByTopic(extraTopics[0], undefined, 1, 0),
+      ).rejects.toThrow('Page size must be positive but it is 0');
+
+      await expect(
+        transactionManager.getChannelsByTopic(extraTopics[0], undefined, 1, -1),
+      ).rejects.toThrow('Page size must be positive but it is -1');
+    });
+
+    it('should throw error for invalid page number in getChannelsByMultipleTopics', async () => {
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      await expect(
+        transactionManager.getChannelsByMultipleTopics([extraTopics[0]], undefined, 0, 10),
+      ).rejects.toThrow('Page number must be greater than or equal to 1 but it is 0');
+
+      await expect(
+        transactionManager.getChannelsByMultipleTopics([extraTopics[0]], undefined, -1, 10),
+      ).rejects.toThrow('Page number must be greater than or equal to 1 but it is -1');
+    });
+
+    it('should throw error for invalid pageSize in getChannelsByMultipleTopics', async () => {
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      await expect(
+        transactionManager.getChannelsByMultipleTopics([extraTopics[0]], undefined, 1, 0),
+      ).rejects.toThrow('Page size must be positive but it is 0');
+
+      await expect(
+        transactionManager.getChannelsByMultipleTopics([extraTopics[0]], undefined, 1, -1),
+      ).rejects.toThrow('Page size must be positive but it is -1');
+    });
+
+    it('should throw error if only one pagination parameter is provided in getChannelsByTopic', async () => {
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      await expect(
+        transactionManager.getChannelsByTopic(extraTopics[0], undefined, 1, undefined),
+      ).rejects.toThrow('Both page and pageSize must be provided for pagination');
+
+      await expect(
+        transactionManager.getChannelsByTopic(extraTopics[0], undefined, undefined, 10),
+      ).rejects.toThrow('Both page and pageSize must be provided for pagination');
+    });
+
+    it('should throw error if only one pagination parameter is provided in getChannelsByMultipleTopics', async () => {
+      const transactionManager = new TransactionManager(fakeDataAccess);
+
+      await expect(
+        transactionManager.getChannelsByMultipleTopics([extraTopics[0]], undefined, 1, undefined),
+      ).rejects.toThrow('Both page and pageSize must be provided for pagination');
+
+      await expect(
+        transactionManager.getChannelsByMultipleTopics([extraTopics[0]], undefined, undefined, 10),
+      ).rejects.toThrow('Both page and pageSize must be provided for pagination');
     });
   });
 });

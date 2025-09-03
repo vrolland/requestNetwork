@@ -5,7 +5,7 @@ import '@nomiclabs/hardhat-ethers';
 import '@matterlabs/hardhat-zksync-node';
 import '@matterlabs/hardhat-zksync-deploy';
 import '@matterlabs/hardhat-zksync-solc';
-import '@matterlabs/hardhat-zksync-verify';
+import '@nomicfoundation/hardhat-verify';
 
 import { subtask, task } from 'hardhat/config';
 import { config } from 'dotenv';
@@ -82,7 +82,7 @@ export default {
       hardfork: 'london',
     },
     private: {
-      url: 'http://127.0.0.1:8545',
+      url: url('private'),
       accounts: undefined,
     },
     mainnet: {
@@ -204,46 +204,17 @@ export default {
       chainId: 8453,
       accounts,
     },
+    sonic: {
+      url: url('sonic'),
+      chainId: 146,
+      accounts,
+    },
   },
   zksolc: {
     version: '1.3.16',
   },
   etherscan: {
-    apiKey: {
-      base: process.env.ETHERSCAN_API_KEY,
-      mainnet: process.env.ETHERSCAN_API_KEY,
-      rinkeby: process.env.ETHERSCAN_API_KEY,
-      goerli: process.env.ETHERSCAN_API_KEY,
-      sepolia: process.env.ETHERSCAN_API_KEY,
-      // binance smart chain
-      bsc: process.env.BSCSCAN_API_KEY,
-      bscTestnet: process.env.BSCSCAN_API_KEY,
-      // fantom mainnet
-      opera: process.env.FTMSCAN_API_KEY,
-      // polygon
-      polygon: process.env.POLYGONSCAN_API_KEY,
-      polygonMumbai: process.env.POLYGONSCAN_API_KEY,
-      // arbitrum
-      arbitrumOne: process.env.ARBISCAN_API_KEY,
-      // avalanche
-      avalanche: process.env.SNOWTRACE_API_KEY,
-      // xdai
-      xdai: process.env.GNOSISSCAN_API_KEY,
-      // optimism
-      optimism: process.env.OPTIMISM_API_KEY,
-      // moonbeam
-      moonbeam: process.env.MOONBEAM_API_KEY,
-      // core
-      core: process.env.CORE_API_KEY,
-      // other networks don't need an API key, but you still need
-      // to specify one; any string placeholder will work
-      sokol: 'api-key',
-      aurora: 'api-key',
-      auroraTestnet: 'api-key',
-      mantle: 'api-key',
-      'mantle-testnet': 'api-key',
-      celo: process.env.CELOSCAN_API_KEY,
-    },
+    apiKey: process.env.ETHERSCAN_API_KEY,
     customChains: [
       {
         network: 'optimism',
@@ -285,6 +256,14 @@ export default {
           browserURL: 'https://celoscan.io/',
         },
       },
+      {
+        network: 'sonic',
+        chainId: 146,
+        urls: {
+          apiURL: 'https://api.sonicscan.org/api',
+          browserURL: 'https://sonicscan.org/',
+        },
+      },
     ],
   },
   tenderly: {
@@ -317,6 +296,7 @@ export default {
           'avalanche',
           'optimism',
           'moonbeam',
+          'sonic',
         ],
     gasLimit: undefined,
     deployerAddress: requestDeployer,

@@ -1,7 +1,7 @@
 /** @type {import('jest').Config} */
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
+  preset: 'ts-jest/presets/js-with-ts',
+  transformIgnorePatterns: ['/node_modules/(?!(graphql-request|@superfluid-finance/sdk-core)/)'],
   reporters: [
     'default',
     [
@@ -17,4 +17,5 @@ module.exports = {
       },
     ],
   ],
+  ...(process.env.JEST_MAX_WORKERS ? { maxWorkers: process.env.JEST_MAX_WORKERS } : {}),
 };

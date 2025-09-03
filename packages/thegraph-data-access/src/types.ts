@@ -1,9 +1,9 @@
-import { StorageTypes } from '@requestnetwork/types';
-import { DataAccessBaseOptions } from '@requestnetwork/data-access';
+import type { StorageTypes } from '@requestnetwork/types';
+import type { DataAccessBaseOptions } from '@requestnetwork/data-access';
+import type { GraphQLClient } from 'graphql-request';
 
-import { RequestConfig } from 'graphql-request/build/cjs/types';
-
+type RequestConfig = (typeof GraphQLClient.prototype)['requestConfig'];
 export type TheGraphDataAccessOptions = DataAccessBaseOptions & {
-  graphql: { url: string } & RequestConfig;
+  graphql: { url: string } & Omit<RequestConfig, 'headers'> & { headers?: Record<string, string> };
   storage?: StorageTypes.IStorageWrite;
 };

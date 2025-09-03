@@ -1,5 +1,5 @@
 import { DataAccessTypes, StorageTypes } from '@requestnetwork/types';
-import { GraphQLClient } from 'graphql-request';
+import { GraphQLClient, Variables } from 'graphql-request';
 import {
   GetBlockQuery,
   GetTransactionByDataHashQuery,
@@ -10,15 +10,21 @@ import {
   Transaction,
   TransactionsBody,
 } from './queries';
-import { Variables, RequestConfig } from 'graphql-request/build/cjs/types';
 
 // Max Int value (as supported by grapqhl types)
 const MAX_INT_VALUE = 0x7fffffff;
 
+type RequestConfig = (typeof GraphQLClient.prototype)['requestConfig'];
+type ClientConfig = Omit<RequestConfig, 'headers'> & { headers?: Record<string, string> };
+
 export class SubgraphClient implements StorageTypes.IIndexer {
   private graphql: GraphQLClient;
   public readonly endpoint: string;
-  constructor(endpoint: string, options?: RequestConfig) {
+
+  private readonly DEFAULT_PAGE_SIZE = 100;
+  private readonly MAX_PAGE_SIZE = 1000;
+
+  constructor(endpoint: string, options?: ClientConfig) {
     this.endpoint = endpoint;
     this.graphql = new GraphQLClient(endpoint, options);
   }
@@ -53,15 +59,19 @@ export class SubgraphClient implements StorageTypes.IIndexer {
   ): Promise<StorageTypes.IGetTransactionsResponse> {
     const { _meta, channels } = await this.graphql.request<
       Meta & { channels: { transactions: Transaction[] }[] }
-    >(GetTransactionsByTopics, { topics });
+    >(GetTransactionsByTopics, {
+      topics,
+    });
 
     const transactionsByChannel = channels
       .map(({ transactions }) => transactions)
       .flat()
       .sort((a, b) => a.blockTimestamp - b.blockTimestamp);
 
+    const indexedTransactions = transactionsByChannel.map(this.toIndexedTransaction);
+
     return {
-      transactions: transactionsByChannel.map(this.toIndexedTransaction),
+      transactions: indexedTransactions,
       blockNumber: _meta.block.number,
     };
   }

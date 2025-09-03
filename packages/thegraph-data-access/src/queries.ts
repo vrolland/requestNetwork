@@ -77,7 +77,7 @@ export const GetTransactionsByHashQuery = gql`
 export const GetTransactionsByTopics = gql`
 ${TransactionsBodyFragment}
 
-query GetTransactionsByTopics($topics: [String!]!){
+query GetTransactionsByTopics($topics: [String!]!) {
   ${metaQueryBody}
   channels(
     where: { topics_contains: $topics }
