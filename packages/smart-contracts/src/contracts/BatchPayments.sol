@@ -307,7 +307,7 @@ contract BatchPayments is Ownable, ReentrancyGuard {
   ) internal returns (bool result) {
     /* solium-disable security/no-inline-assembly */
     // check if the address is a contract
-    assembly {
+    assembly ("memory-safe") {
       if iszero(extcodesize(_tokenAddress)) {
         revert(0, 0)
       }
@@ -318,7 +318,7 @@ contract BatchPayments is Ownable, ReentrancyGuard {
       abi.encodeWithSignature('transferFrom(address,address,uint256)', msg.sender, _to, _amount)
     );
 
-    assembly {
+    assembly ("memory-safe") {
       switch returndatasize()
       case 0 {
         // Not a standard erc20

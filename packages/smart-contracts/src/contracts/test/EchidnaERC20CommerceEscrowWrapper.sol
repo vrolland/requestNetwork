@@ -73,7 +73,7 @@ contract EchidnaERC20CommerceEscrowWrapper {
 
     // In Echidna, this contract is the caller for all operations
     // We mint initial tokens but will mint more as needed in drivers
-    token.mint(address(this), 10000000 ether);
+    token.mint(address(this), 10000000e18);
 
     // Track initial supply
     supply = token.totalSupply();
@@ -271,7 +271,7 @@ contract EchidnaERC20CommerceEscrowWrapper {
     // Keep amounts within reasonable range to avoid excessive gas usage
     // and focus on interesting state transitions
     if (amount == 0) return 0;
-    if (amount > 1000000 ether) return (amount % 1000000 ether) + 1 ether;
+    if (amount > 1000000e18) return (amount % 1000000e18) + 1e18;
     return amount;
   }
 
@@ -282,7 +282,7 @@ contract EchidnaERC20CommerceEscrowWrapper {
   /// @dev This ensures merchant always receives non-negative amount
   function echidna_fee_never_exceeds_capture() public returns (bool) {
     // For any valid feeBps (0-10000), fee should never exceed captureAmount
-    uint256 captureAmount = 1000 ether;
+    uint256 captureAmount = 1000e18;
     for (uint16 feeBps = 0; feeBps <= 10000; feeBps += 100) {
       uint256 feeAmount = (captureAmount * feeBps) / 10000;
       if (feeAmount > captureAmount) {
@@ -299,7 +299,7 @@ contract EchidnaERC20CommerceEscrowWrapper {
     // For any valid feeBps (0-10000), (amount * feeBps) / 10000 should be <= amount
     // For invalid feeBps (>10000), the contract should revert in capturePayment
     // We test the mathematical bound here
-    uint256 testAmount = 1000 ether;
+    uint256 testAmount = 1000e18;
     uint256 maxFeeBps = 10000;
     uint256 maxFee = (testAmount * maxFeeBps) / 10000;
     return maxFee == testAmount; // At 100% fee (10000 bps), fee equals amount
@@ -311,7 +311,7 @@ contract EchidnaERC20CommerceEscrowWrapper {
   /// @notice Invariant: Fee calculation cannot cause underflow
   /// @dev merchantAmount = captureAmount - feeAmount should always be >= 0
   function echidna_no_underflow_in_merchant_payment() public returns (bool) {
-    uint256 captureAmount = 1000 ether;
+    uint256 captureAmount = 1000e18;
     // Test various fee percentages
     for (uint16 feeBps = 0; feeBps <= 10000; feeBps += 500) {
       uint256 feeAmount = (captureAmount * feeBps) / 10000;
@@ -333,7 +333,7 @@ contract EchidnaERC20CommerceEscrowWrapper {
     uint256 uint96Max = uint256(type(uint96).max);
     // Should be able to represent at least 10 billion tokens (1e10 * 1e18)
     // uint96 can hold ~79 billion tokens with 18 decimals
-    uint256 tenBillionTokens = 10000000000 ether; // 10 billion with 18 decimals
+    uint256 tenBillionTokens = 10000000000e18; // 10 billion with 18 decimals
     return uint96Max >= tenBillionTokens;
   }
 
@@ -368,7 +368,7 @@ contract EchidnaERC20CommerceEscrowWrapper {
     // (tokens go to escrow, merchant, or fee receiver)
     uint256 wrapperBalance = token.balanceOf(address(wrapper));
     // Allow small dust amounts but not significant holdings
-    return wrapperBalance < 1 ether;
+    return wrapperBalance < 1e18;
   }
 
   // ============================================

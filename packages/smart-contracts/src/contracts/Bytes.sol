@@ -23,7 +23,7 @@ library Bytes {
     );
 
     // solium-disable-next-line security/no-inline-assembly
-    assembly {
+    assembly ("memory-safe") {
       result := mload(add(data, add(32, offset)))
     }
   }

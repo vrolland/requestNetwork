@@ -167,6 +167,10 @@ export const erc20FeeProxyArtifact = new ContractArtifact<ERC20FeeProxy>(
           address: '0x399F5EE127ce7432E4921a61b8CF52b0af52cbfE',
           creationBlockNumber: 3974138,
         },
+        nile: { // TRON testnet
+          address: 'THK5rNmrvCujhmrXa5DB1dASepwXTr9cJs',
+          creationBlockNumber: 63208782,
+        }
       },
     },
     near: {

@@ -226,7 +226,7 @@ contract ChainlinkConversionPath is WhitelistAdminRole {
   function isContract(address _addr) private view returns (bool) {
     uint32 size;
     // solium-disable security/no-inline-assembly
-    assembly {
+    assembly ("memory-safe") {
       size := extcodesize(_addr)
     }
     return (size > 0);

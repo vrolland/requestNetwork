@@ -14,7 +14,7 @@ contract GnosisSafeProxy {
   /// @dev Fallback function forwards all transactions and returns all received return data.
   fallback() external payable {
     // solhint-disable-next-line no-inline-assembly
-    assembly {
+    assembly ("memory-safe") {
       let _singleton := and(sload(0), 0xffffffffffffffffffffffffffffffffffffffff)
       // 0xa619486e == keccak("masterCopy()"). The value is right padded to 32-bytes with 0s
       if eq(calldataload(0), 0xa619486e00000000000000000000000000000000000000000000000000000000) {

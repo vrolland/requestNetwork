@@ -51,12 +51,17 @@ export type DeclarativeChainName = 'tron' | 'solana' | 'ton' | 'starknet' | 'ale
  */
 export type NearChainName = 'aurora' | 'aurora-testnet' | 'near' | 'near-testnet';
 
-export type ChainName = EvmChainName | BtcChainName | NearChainName | DeclarativeChainName;
+/**
+ * List of supported TRON chains
+ */
+export type TronChainName = 'nile';
+
+export type ChainName = EvmChainName | BtcChainName | NearChainName | DeclarativeChainName | TronChainName;
 
 /**
  * Virtual machin chains, where payment proxy contracts can be deployed
  */
-export type VMChainName = EvmChainName | NearChainName;
+export type VMChainName = EvmChainName | NearChainName | TronChainName;
 
 /**
  * Common types used in token configuration files

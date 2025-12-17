@@ -305,7 +305,11 @@ contract BadERC20 is Pausable, StandardToken, BlackList {
   }
 
   // Forward ERC20 methods to upgraded contract if this one is deprecated
-  function transfer(address _to, uint256 _value) public override whenNotPaused {
+  function transfer(address _to, uint256 _value)
+    public
+    override(BasicToken, ERC20Basic) // for Tron
+    whenNotPaused
+  {
     require(!isBlackListed[msg.sender], '');
     if (deprecated) {
       return UpgradedStandardToken(upgradedAddress).transferByLegacy(msg.sender, _to, _value);
@@ -330,7 +334,12 @@ contract BadERC20 is Pausable, StandardToken, BlackList {
   }
 
   // Forward ERC20 methods to upgraded contract if this one is deprecated
-  function balanceOf(address who) public view override returns (uint256) {
+  function balanceOf(address who)
+    public
+    view
+    override(BasicToken, ERC20Basic) // for Tron
+    returns (uint256)
+  {
     if (deprecated) {
       return UpgradedStandardToken(upgradedAddress).balanceOf(who);
     } else {

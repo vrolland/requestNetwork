@@ -69,7 +69,7 @@ const url = (network: string): string => process.env.WEB3_PROVIDER_URL || networ
 
 export default {
   solidity: {
-    version: '0.8.9',
+    version: '0.8.18',
     settings: {
       optimizer: {
         enabled: true,
